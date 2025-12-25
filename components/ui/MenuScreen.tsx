@@ -1,0 +1,75 @@
+// ==============================================================================
+// file_id: SOM-SCR-0013-v0.1.0
+// name: MenuScreen.tsx
+// description: Main menu screen component
+// project_id: UNI-HUNT
+// category: component
+// tags: [ui, menu, start]
+// created: 2025-12-25
+// modified: 2025-12-25
+// version: 0.1.0
+// agent_id: AGENT-PRIME-002
+// execution: import { MenuScreen } from '@/components/ui/MenuScreen'
+// ==============================================================================
+
+"use client";
+
+import { useGameStore } from '@/stores/gameStore';
+import { RAINBOW_HEX } from '@/types/game';
+
+interface MenuScreenProps {
+  onStart: () => void;
+}
+
+export function MenuScreen({ onStart }: MenuScreenProps) {
+  const phase = useGameStore((state) => state.phase);
+
+  if (phase !== 'menu') return null;
+
+  return (
+    <div className="absolute inset-0 bg-black/90 flex items-center justify-center">
+      <div className="text-center">
+        <h1
+          className="text-6xl font-bold mb-4"
+          style={{
+            background: `linear-gradient(to right, ${RAINBOW_HEX.red}, ${RAINBOW_HEX.orange}, ${RAINBOW_HEX.yellow}, ${RAINBOW_HEX.green}, ${RAINBOW_HEX.blue}, ${RAINBOW_HEX.indigo}, ${RAINBOW_HEX.violet})`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
+          Unicorn Hunt
+        </h1>
+
+        <p className="text-xl text-gray-300 mb-8 max-w-md mx-auto">
+          Catch unicorns with your rainbow net to collect gold!
+          <br />
+          <span className="text-red-400">Beware the leprechauns!</span>
+        </p>
+
+        <div className="bg-gray-900/80 rounded-lg p-6 mb-8 max-w-sm mx-auto text-left">
+          <h3 className="text-lg font-bold text-white mb-3">How to Play:</h3>
+          <ul className="text-gray-300 space-y-2 text-sm">
+            <li>Move mouse to control your rainbow net</li>
+            <li>Catch unicorns to earn gold</li>
+            <li>Click to shoot leprechauns</li>
+            <li>Leprechauns steal rainbow colors!</li>
+            <li>Lose all colors = Game Over</li>
+            <li>Collect enough gold to win each level</li>
+          </ul>
+        </div>
+
+        <button
+          onClick={onStart}
+          className="px-10 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white text-2xl font-bold rounded-xl hover:from-purple-500 hover:via-pink-500 hover:to-purple-500 transition-all transform hover:scale-105 shadow-lg shadow-purple-500/30"
+        >
+          Start Game
+        </button>
+
+        <p className="text-gray-500 text-sm mt-6">
+          Press ESC to pause
+        </p>
+      </div>
+    </div>
+  );
+}
