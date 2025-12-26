@@ -28,10 +28,11 @@ export function GameCanvas() {
       ref={canvasRef}
       width={GAME_CONFIG.CANVAS_WIDTH}
       height={GAME_CONFIG.CANVAS_HEIGHT}
-      className="border-2 border-purple-600 rounded-lg shadow-lg shadow-purple-500/20 cursor-crosshair"
+      className="cursor-crosshair"
       style={{
-        maxWidth: '100%',
-        height: 'auto',
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
       }}
     />
   );
