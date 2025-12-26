@@ -1,20 +1,20 @@
 // ==============================================================================
-// file_id: SOM-SCR-0001-v0.1.0
+// file_id: SOM-SCR-0001-v0.2.0
 // name: gameStore.ts
-// description: Zustand store for game state management
+// description: Zustand store for game state management - drain mechanic
 // project_id: UNI-HUNT
 // category: store
-// tags: [zustand, state, game]
+// tags: [zustand, state, game, drain]
 // created: 2025-12-25
 // modified: 2025-12-25
-// version: 0.1.0
+// version: 0.2.0
 // agent_id: AGENT-PRIME-002
 // execution: import { useGameStore } from '@/stores/gameStore'
 // ==============================================================================
 
 import { create } from 'zustand';
 import { GamePhase, RainbowColor, RAINBOW_COLORS } from '@/types/game';
-import { Player, Unicorn, Leprechaun, PotOfGold, Projectile } from '@/types/entities';
+import { Player, Unicorn, Leprechaun, PotOfGold } from '@/types/entities';
 import { GAME_CONFIG } from '@/lib/config/game-config';
 import { getLevelConfig } from '@/lib/config/level-config';
 
@@ -26,12 +26,12 @@ interface GameStore {
   gold: number;
   goldRequired: number;
   rainbowColors: RainbowColor[];
+  harvestCount: number;
 
   // Entities
   player: Player;
   unicorns: Unicorn[];
   leprechauns: Leprechaun[];
-  projectiles: Projectile[];
   potOfGold: PotOfGold;
 
   // Timing
@@ -51,20 +51,18 @@ interface GameStore {
   removeUnicorn: (id: string) => void;
   addLeprechaun: (leprechaun: Leprechaun) => void;
   removeLeprechaun: (id: string) => void;
-  addProjectile: (projectile: Projectile) => void;
-  removeProjectile: (id: string) => void;
 
   // Game logic actions
   catchUnicorn: (id: string) => void;
-  killLeprechaun: (id: string) => void;
+  harvestLeprechaun: (id: string) => void;
   stealRainbowColor: (leprechaunId: string) => void;
+  restoreRainbowColor: () => void;
 
   // Bulk updates for game loop
   updateEntities: (updates: {
     player?: Partial<Player>;
     unicorns?: Unicorn[];
     leprechauns?: Leprechaun[];
-    projectiles?: Projectile[];
     unicornSpawnTimer?: number;
     leprechaunSpawnTimer?: number;
   }) => void;
@@ -79,8 +77,8 @@ function createInitialPlayer(): Player {
     rotation: 0,
     active: true,
     netRadius: GAME_CONFIG.PLAYER_NET_RADIUS,
-    shootCooldown: 0,
-    shootCooldownMax: GAME_CONFIG.PLAYER_SHOOT_COOLDOWN,
+    isDraining: false,
+    drainTargetId: null,
   };
 }
 
@@ -104,10 +102,10 @@ function getInitialState() {
     gold: 0,
     goldRequired: levelConfig.goldRequired,
     rainbowColors: [...RAINBOW_COLORS],
+    harvestCount: 0,
     player: createInitialPlayer(),
     unicorns: [] as Unicorn[],
     leprechauns: [] as Leprechaun[],
-    projectiles: [] as Projectile[],
     potOfGold: createPotOfGold(),
     unicornSpawnTimer: 0,
     leprechaunSpawnTimer: 0,
@@ -154,10 +152,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       goldRequired: levelConfig.goldRequired,
       unicorns: [],
       leprechauns: [],
-      projectiles: [],
       unicornSpawnTimer: 0,
       leprechaunSpawnTimer: 0,
       phase: 'playing',
+      player: createInitialPlayer(),
     });
   },
 
@@ -191,18 +189,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }));
   },
 
-  addProjectile: (projectile) => {
-    set((state) => ({
-      projectiles: [...state.projectiles, projectile],
-    }));
-  },
-
-  removeProjectile: (id) => {
-    set((state) => ({
-      projectiles: state.projectiles.filter((p) => p.id !== id),
-    }));
-  },
-
   catchUnicorn: (id) => {
     const state = get();
     const unicorn = state.unicorns.find((u) => u.id === id);
@@ -223,12 +209,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  killLeprechaun: (id) => {
+  harvestLeprechaun: (id) => {
     const state = get();
+    const newHarvestCount = state.harvestCount + 1;
+
     set({
       leprechauns: state.leprechauns.filter((l) => l.id !== id),
-      score: state.score + 50, // Bonus points for killing leprechaun
+      score: state.score + 100,
+      harvestCount: newHarvestCount,
     });
+
+    // Every 3 harvests, restore a rainbow color
+    if (newHarvestCount % 3 === 0) {
+      get().restoreRainbowColor();
+    }
+  },
+
+  restoreRainbowColor: () => {
+    const state = get();
+    if (state.rainbowColors.length >= 7) return;
+
+    // Find the next missing color (restore from left to right)
+    const missingColors = RAINBOW_COLORS.filter(
+      (c) => !state.rainbowColors.includes(c)
+    );
+
+    if (missingColors.length > 0) {
+      // Add back the first missing color (leftmost in ROYGBIV order)
+      const colorToRestore = missingColors[0];
+      const colorIndex = RAINBOW_COLORS.indexOf(colorToRestore);
+
+      // Insert color in correct position
+      const newColors = [...state.rainbowColors];
+      newColors.splice(colorIndex, 0, colorToRestore);
+
+      set({ rainbowColors: newColors });
+    }
   },
 
   stealRainbowColor: (leprechaunId) => {
@@ -255,7 +271,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...(updates.player && { player: { ...state.player, ...updates.player } }),
       ...(updates.unicorns !== undefined && { unicorns: updates.unicorns }),
       ...(updates.leprechauns !== undefined && { leprechauns: updates.leprechauns }),
-      ...(updates.projectiles !== undefined && { projectiles: updates.projectiles }),
       ...(updates.unicornSpawnTimer !== undefined && { unicornSpawnTimer: updates.unicornSpawnTimer }),
       ...(updates.leprechaunSpawnTimer !== undefined && { leprechaunSpawnTimer: updates.leprechaunSpawnTimer }),
     }));

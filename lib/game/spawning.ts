@@ -1,18 +1,18 @@
 // ==============================================================================
-// file_id: SOM-SCR-0003-v0.1.0
+// file_id: SOM-SCR-0003-v0.2.0
 // name: spawning.ts
-// description: Entity spawning and factory functions
+// description: Entity spawning and factory functions - drain mechanic
 // project_id: UNI-HUNT
 // category: game-logic
-// tags: [spawning, entities, factory]
+// tags: [spawning, entities, factory, drain]
 // created: 2025-12-25
 // modified: 2025-12-25
-// version: 0.1.0
+// version: 0.2.0
 // agent_id: AGENT-PRIME-002
-// execution: import { spawnUnicorn, spawnLeprechaun } from '@/lib/game/spawning'
+// execution: import { createUnicorn, createLeprechaun } from '@/lib/game/spawning'
 // ==============================================================================
 
-import { Unicorn, Leprechaun, Projectile } from '@/types/entities';
+import { Unicorn, Leprechaun } from '@/types/entities';
 import { Vector2 } from '@/types/game';
 import { GAME_CONFIG } from '@/lib/config/game-config';
 
@@ -88,32 +88,9 @@ export function createLeprechaun(speed: number): Leprechaun {
     active: true,
     speed,
     targetColor: null,
-  };
-}
-
-export function createProjectile(
-  startX: number,
-  startY: number,
-  targetX: number,
-  targetY: number
-): Projectile {
-  const dx = targetX - startX;
-  const dy = targetY - startY;
-  const length = Math.sqrt(dx * dx + dy * dy);
-
-  const vx = length > 0 ? (dx / length) * GAME_CONFIG.PROJECTILE_SPEED : 0;
-  const vy = length > 0 ? (dy / length) * GAME_CONFIG.PROJECTILE_SPEED : 0;
-
-  return {
-    id: generateId('projectile'),
-    position: { x: startX, y: startY },
-    velocity: { x: vx, y: vy },
-    size: GAME_CONFIG.PROJECTILE_SIZE,
-    rotation: Math.atan2(dy, dx),
-    active: true,
-    damage: 1,
-    lifetime: 0,
-    maxLifetime: GAME_CONFIG.PROJECTILE_LIFETIME,
+    drainProgress: 0,
+    maxDrainTime: GAME_CONFIG.LEPRECHAUN_DRAIN_TIME,
+    isBeingDrained: false,
   };
 }
 
@@ -164,13 +141,17 @@ export function updateLeprechaunMovement(
   potPosition: Vector2,
   deltaTime: number
 ): Leprechaun {
+  // If being drained, slow down significantly
+  const speedMultiplier = leprechaun.isBeingDrained ? 0.2 : 1;
+
   // Move directly toward pot of gold
   const dx = potPosition.x - leprechaun.position.x;
   const dy = potPosition.y - leprechaun.position.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  const vx = distance > 0 ? (dx / distance) * leprechaun.speed : 0;
-  const vy = distance > 0 ? (dy / distance) * leprechaun.speed : 0;
+  const effectiveSpeed = leprechaun.speed * speedMultiplier;
+  const vx = distance > 0 ? (dx / distance) * effectiveSpeed : 0;
+  const vy = distance > 0 ? (dy / distance) * effectiveSpeed : 0;
 
   return {
     ...leprechaun,
@@ -183,23 +164,14 @@ export function updateLeprechaunMovement(
   };
 }
 
-export function updateProjectile(projectile: Projectile, deltaTime: number): Projectile {
-  return {
-    ...projectile,
-    position: {
-      x: projectile.position.x + projectile.velocity.x * deltaTime,
-      y: projectile.position.y + projectile.velocity.y * deltaTime,
-    },
-    lifetime: projectile.lifetime + deltaTime,
-  };
-}
-
-export function isProjectileExpired(projectile: Projectile): boolean {
-  return (
-    projectile.lifetime >= projectile.maxLifetime ||
-    projectile.position.x < -50 ||
-    projectile.position.x > GAME_CONFIG.CANVAS_WIDTH + 50 ||
-    projectile.position.y < -50 ||
-    projectile.position.y > GAME_CONFIG.CANVAS_HEIGHT + 50
-  );
+export function isPointInCircle(
+  pointX: number,
+  pointY: number,
+  circleX: number,
+  circleY: number,
+  radius: number
+): boolean {
+  const dx = pointX - circleX;
+  const dy = pointY - circleY;
+  return dx * dx + dy * dy <= radius * radius;
 }

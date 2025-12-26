@@ -120,7 +120,6 @@ export function useGameLoop({ canvasRef }: UseGameLoopOptions) {
         player: currentState.player,
         unicorns: currentState.unicorns,
         leprechauns: currentState.leprechauns,
-        projectiles: currentState.projectiles,
         potOfGold: currentState.potOfGold,
       });
 

@@ -20,12 +20,11 @@ export const GAME_CONFIG = {
   // Player settings
   PLAYER_SIZE: 12,
   PLAYER_NET_RADIUS: 50,
-  PLAYER_SHOOT_COOLDOWN: 0.3, // seconds
+  DRAIN_RANGE: 120, // Range to drain leprechauns
 
-  // Projectile settings
-  PROJECTILE_SIZE: 6,
-  PROJECTILE_SPEED: 500,
-  PROJECTILE_LIFETIME: 2, // seconds
+  // Drain mechanic
+  LEPRECHAUN_DRAIN_TIME: 1.5, // seconds to fully drain a leprechaun
+  DRAIN_SPEED: 1.0, // Multiplier for drain speed
 
   // Entity sizes
   UNICORN_SIZE: 18,

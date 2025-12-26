@@ -25,8 +25,8 @@ export interface Entity {
 
 export interface Player extends Entity {
   netRadius: number;
-  shootCooldown: number;
-  shootCooldownMax: number;
+  isDraining: boolean;
+  drainTargetId: string | null;
 }
 
 export interface Unicorn extends Entity {
@@ -39,6 +39,9 @@ export interface Unicorn extends Entity {
 export interface Leprechaun extends Entity {
   speed: number;
   targetColor: RainbowColor | null;
+  drainProgress: number;
+  maxDrainTime: number;
+  isBeingDrained: boolean;
 }
 
 export interface PotOfGold extends Entity {
