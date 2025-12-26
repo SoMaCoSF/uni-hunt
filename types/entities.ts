@@ -1,18 +1,21 @@
 // ==============================================================================
-// file_id: SOM-DTA-0002-v0.1.0
+// file_id: SOM-DTA-0002-v0.3.0
 // name: entities.ts
-// description: Entity type definitions for game objects
+// description: Entity type definitions for game objects - with bosses
 // project_id: UNI-HUNT
 // category: types
-// tags: [entities, player, unicorn, leprechaun]
+// tags: [entities, player, unicorn, leprechaun, boss]
 // created: 2025-12-25
 // modified: 2025-12-25
-// version: 0.1.0
+// version: 0.3.0
 // agent_id: AGENT-PRIME-002
-// execution: import { Player, Unicorn, Leprechaun } from '@/types/entities'
+// execution: import { Player, Unicorn, Leprechaun, Boss } from '@/types/entities'
 // ==============================================================================
 
 import { Vector2, RainbowColor } from './game';
+
+// Boss types for levels 3, 6, 9
+export type BossType = 'rain_thunder' | 'lightning' | 'hurricane';
 
 export interface Entity {
   id: string;
@@ -21,6 +24,23 @@ export interface Entity {
   size: number;
   rotation: number;
   active: boolean;
+}
+
+export interface Boss extends Entity {
+  bossType: BossType;
+  health: number;
+  maxHealth: number;
+  phase: number; // Boss phases increase difficulty
+  isVulnerable: boolean;
+  vulnerableTimer: number;
+  attackTimer: number;
+  attackCooldown: number;
+  // Visual effects
+  rainIntensity: number;
+  thunderTimer: number;
+  lightningTargets: Vector2[];
+  hurricaneAngle: number;
+  hurricaneSpeed: number;
 }
 
 export interface Player extends Entity {
@@ -39,9 +59,12 @@ export interface Unicorn extends Entity {
 export interface Leprechaun extends Entity {
   speed: number;
   targetColor: RainbowColor | null;
-  drainProgress: number;
-  maxDrainTime: number;
-  isBeingDrained: boolean;
+  // Tap mechanic (mobile friendly)
+  tapCount: number;
+  tapsRequired: number;
+  lastTapTime: number;
+  stunTimer: number; // Brief stun after being tapped
+  isStunned: boolean;
 }
 
 export interface PotOfGold extends Entity {

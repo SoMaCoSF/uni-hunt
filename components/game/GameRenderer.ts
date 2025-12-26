@@ -1,20 +1,21 @@
 // ==============================================================================
-// file_id: SOM-SCR-0006-v0.3.0
+// file_id: SOM-SCR-0006-v0.4.0
 // name: GameRenderer.ts
-// description: Canvas rendering - drain beam mechanic
+// description: Canvas rendering - boss battles & weather effects
 // project_id: UNI-HUNT
 // category: rendering
-// tags: [canvas, rendering, draw, sprites, drain]
+// tags: [canvas, rendering, draw, sprites, boss, weather]
 // created: 2025-12-25
 // modified: 2025-12-25
-// version: 0.3.0
+// version: 0.4.0
 // agent_id: AGENT-PRIME-002
 // execution: import { renderGame } from '@/components/game/GameRenderer'
 // ==============================================================================
 
-import { Player, Unicorn, Leprechaun, PotOfGold } from '@/types/entities';
-import { RAINBOW_HEX } from '@/types/game';
+import { Player, Unicorn, Leprechaun, PotOfGold, Boss } from '@/types/entities';
+import { RAINBOW_HEX, Vector2 } from '@/types/game';
 import { GAME_CONFIG } from '@/lib/config/game-config';
+import { RainDrop, LightningBolt } from '@/stores/gameStore';
 
 let animTime = 0;
 
@@ -192,74 +193,6 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void 
   ctx.restore();
 }
 
-export function drawDrainBeam(
-  ctx: CanvasRenderingContext2D,
-  playerX: number,
-  playerY: number,
-  targetX: number,
-  targetY: number,
-  progress: number
-): void {
-  ctx.save();
-
-  const dx = targetX - playerX;
-  const dy = targetY - playerY;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // Rainbow beam with animated segments
-  const beamWidth = 8 + Math.sin(animTime * 10) * 2;
-  const colors = [RAINBOW_HEX.red, RAINBOW_HEX.orange, RAINBOW_HEX.yellow, RAINBOW_HEX.green, RAINBOW_HEX.blue, RAINBOW_HEX.violet];
-
-  ctx.globalAlpha = 0.8;
-
-  for (let i = 0; i < colors.length; i++) {
-    const offset = (i - colors.length / 2) * 2;
-    const waveOffset = Math.sin(animTime * 8 + i) * 3;
-
-    ctx.strokeStyle = colors[i];
-    ctx.lineWidth = beamWidth - i * 0.5;
-    ctx.lineCap = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(playerX, playerY);
-
-    // Wavy beam
-    const steps = 10;
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      const x = playerX + dx * t;
-      const y = playerY + dy * t + Math.sin(t * Math.PI * 4 + animTime * 10 + i) * waveOffset;
-      ctx.lineTo(x, y);
-    }
-
-    ctx.stroke();
-  }
-
-  // Center bright core
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(playerX, playerY);
-  ctx.lineTo(targetX, targetY);
-  ctx.stroke();
-
-  // Particles along beam
-  ctx.globalAlpha = 1;
-  for (let i = 0; i < 5; i++) {
-    const t = ((animTime * 2 + i * 0.2) % 1);
-    const px = playerX + dx * t;
-    const py = playerY + dy * t + Math.sin(t * Math.PI * 4 + animTime * 10) * 3;
-
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.beginPath();
-    ctx.arc(px, py, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
 export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): void {
   ctx.save();
   ctx.translate(unicorn.position.x, unicorn.position.y);
@@ -341,29 +274,32 @@ export function drawLeprechaun(ctx: CanvasRenderingContext2D, leprechaun: Leprec
   ctx.save();
   ctx.translate(leprechaun.position.x, leprechaun.position.y);
 
-  const drainPercent = leprechaun.drainProgress / leprechaun.maxDrainTime;
+  const tapPercent = leprechaun.tapCount / leprechaun.tapsRequired;
 
-  // Drain effect - leprechaun fades and gets smaller as drained
-  const scale = 1 - drainPercent * 0.3;
-  const alpha = 1 - drainPercent * 0.5;
+  // Stun effect - shake when stunned
+  if (leprechaun.isStunned) {
+    const shake = Math.sin(animTime * 50) * 3;
+    ctx.translate(shake, 0);
+  }
+
+  // Scale down as more taps land
+  const scale = 1 - tapPercent * 0.2;
   ctx.scale(scale, scale);
-  ctx.globalAlpha = alpha;
 
-  // Drain glow when being drained
-  if (leprechaun.isBeingDrained) {
-    const drainGlow = ctx.createRadialGradient(0, 0, leprechaun.size, 0, 0, leprechaun.size * 2.5);
-    drainGlow.addColorStop(0, 'rgba(255, 100, 255, 0.5)');
-    drainGlow.addColorStop(1, 'rgba(255, 0, 255, 0)');
-    ctx.fillStyle = drainGlow;
+  // Stun glow when stunned
+  if (leprechaun.isStunned) {
+    const stunGlow = ctx.createRadialGradient(0, 0, leprechaun.size, 0, 0, leprechaun.size * 2.5);
+    stunGlow.addColorStop(0, 'rgba(255, 255, 0, 0.5)');
+    stunGlow.addColorStop(1, 'rgba(255, 200, 0, 0)');
+    ctx.fillStyle = stunGlow;
     ctx.beginPath();
     ctx.arc(0, 0, leprechaun.size * 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Evil aura (reduced when draining)
-  const auraAlpha = leprechaun.isBeingDrained ? 0.1 : 0.3;
+  // Evil aura
   const evilGlow = ctx.createRadialGradient(0, 0, leprechaun.size, 0, 0, leprechaun.size * 2);
-  evilGlow.addColorStop(0, `rgba(0, 100, 0, ${auraAlpha})`);
+  evilGlow.addColorStop(0, 'rgba(0, 100, 0, 0.3)');
   evilGlow.addColorStop(1, 'rgba(0, 50, 0, 0)');
   ctx.fillStyle = evilGlow;
   ctx.beginPath();
@@ -415,46 +351,251 @@ export function drawLeprechaun(ctx: CanvasRenderingContext2D, leprechaun: Leprec
   ctx.quadraticCurveTo(leprechaun.size * 0.3, leprechaun.size * 1.5, leprechaun.size * 0.7, leprechaun.size * 0.1);
   ctx.fill();
 
-  // Eyes
-  ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath();
-  ctx.ellipse(-leprechaun.size * 0.35, -leprechaun.size * 0.25, 5, 6, 0, 0, Math.PI * 2);
-  ctx.ellipse(leprechaun.size * 0.35, -leprechaun.size * 0.25, 5, 6, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Eyes - stars when stunned
+  if (leprechaun.isStunned) {
+    ctx.fillStyle = '#FFFF00';
+    for (let i = 0; i < 2; i++) {
+      const ex = i === 0 ? -leprechaun.size * 0.35 : leprechaun.size * 0.35;
+      const ey = -leprechaun.size * 0.25;
+      const starAngle = animTime * 10;
+      for (let j = 0; j < 4; j++) {
+        ctx.save();
+        ctx.translate(ex, ey);
+        ctx.rotate(starAngle + j * Math.PI / 2);
+        ctx.fillRect(-1, -4, 2, 8);
+        ctx.restore();
+      }
+    }
+  } else {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(-leprechaun.size * 0.35, -leprechaun.size * 0.25, 5, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(leprechaun.size * 0.35, -leprechaun.size * 0.25, 5, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Pupils - spin when being drained!
-  const pupilOffset = leprechaun.isBeingDrained ? Math.sin(animTime * 20) * 2 : 0;
-  ctx.fillStyle = '#000000';
-  ctx.beginPath();
-  ctx.arc(-leprechaun.size * 0.3 + pupilOffset, -leprechaun.size * 0.2, 3, 0, Math.PI * 2);
-  ctx.arc(leprechaun.size * 0.4 + pupilOffset, -leprechaun.size * 0.2, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.globalAlpha = 1;
-
-  // Drain progress bar above head
-  if (leprechaun.drainProgress > 0) {
-    const barWidth = 30;
-    const barHeight = 4;
-    const barY = -leprechaun.size - 30;
-
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
-
-    // Progress (rainbow gradient)
-    const progressGrad = ctx.createLinearGradient(-barWidth / 2, 0, barWidth / 2, 0);
-    progressGrad.addColorStop(0, RAINBOW_HEX.red);
-    progressGrad.addColorStop(0.5, RAINBOW_HEX.green);
-    progressGrad.addColorStop(1, RAINBOW_HEX.violet);
-    ctx.fillStyle = progressGrad;
-    ctx.fillRect(-barWidth / 2, barY, barWidth * drainPercent, barHeight);
-
-    // Border
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(-barWidth / 2, barY, barWidth, barHeight);
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(-leprechaun.size * 0.3, -leprechaun.size * 0.2, 3, 0, Math.PI * 2);
+    ctx.arc(leprechaun.size * 0.4, -leprechaun.size * 0.2, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
+
+  // Tap progress indicator (circles above head)
+  if (leprechaun.tapCount > 0) {
+    const indicatorY = -leprechaun.size - 35;
+    const spacing = 8;
+    const startX = -((leprechaun.tapsRequired - 1) * spacing) / 2;
+
+    for (let i = 0; i < leprechaun.tapsRequired; i++) {
+      const x = startX + i * spacing;
+      const isFilled = i < leprechaun.tapCount;
+
+      ctx.beginPath();
+      ctx.arc(x, indicatorY, 3, 0, Math.PI * 2);
+
+      if (isFilled) {
+        const colors = [RAINBOW_HEX.red, RAINBOW_HEX.orange, RAINBOW_HEX.yellow, RAINBOW_HEX.green, RAINBOW_HEX.blue];
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+// Draw rain drops
+export function drawRain(ctx: CanvasRenderingContext2D, rainDrops: RainDrop[]): void {
+  ctx.strokeStyle = 'rgba(150, 180, 255, 0.6)';
+  ctx.lineWidth = 1;
+
+  for (const drop of rainDrops) {
+    ctx.beginPath();
+    ctx.moveTo(drop.x, drop.y);
+    ctx.lineTo(drop.x - 2, drop.y + drop.length);
+    ctx.stroke();
+  }
+}
+
+// Draw thunder flash overlay
+export function drawThunderFlash(ctx: CanvasRenderingContext2D, intensity: number): void {
+  if (intensity <= 0) return;
+
+  ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.3})`;
+  ctx.fillRect(0, 0, GAME_CONFIG.CANVAS_WIDTH, GAME_CONFIG.CANVAS_HEIGHT);
+}
+
+// Draw lightning bolts
+export function drawLightning(ctx: CanvasRenderingContext2D, bolts: LightningBolt[]): void {
+  for (const bolt of bolts) {
+    if (bolt.isWarning && bolt.targetPos) {
+      // Draw warning circle
+      const pulseSize = 30 + Math.sin(animTime * 20) * 10;
+      ctx.strokeStyle = `rgba(255, 255, 0, ${0.5 + Math.sin(animTime * 15) * 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(bolt.targetPos.x, bolt.targetPos.y, pulseSize, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Warning text
+      ctx.fillStyle = '#FFFF00';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', bolt.targetPos.x, bolt.targetPos.y + 4);
+    } else if (bolt.points.length > 1) {
+      // Draw actual lightning bolt
+      ctx.globalAlpha = bolt.alpha;
+
+      // Glow
+      ctx.shadowColor = '#88FFFF';
+      ctx.shadowBlur = 20;
+
+      // Main bolt
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+      for (let i = 1; i < bolt.points.length; i++) {
+        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
+      }
+      ctx.stroke();
+
+      // Core
+      ctx.strokeStyle = '#88FFFF';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+      for (let i = 1; i < bolt.points.length; i++) {
+        ctx.lineTo(bolt.points[i].x, bolt.points[i].y);
+      }
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// Draw hurricane effect
+export function drawHurricane(ctx: CanvasRenderingContext2D, angle: number, centerX: number, centerY: number): void {
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(angle);
+
+  // Spiral arms
+  for (let arm = 0; arm < 3; arm++) {
+    ctx.save();
+    ctx.rotate((arm * Math.PI * 2) / 3);
+
+    ctx.strokeStyle = `rgba(100, 150, 200, 0.3)`;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+
+    for (let i = 0; i < 50; i++) {
+      const spiralAngle = i * 0.15;
+      const radius = 20 + i * 4;
+      const x = Math.cos(spiralAngle) * radius;
+      const y = Math.sin(spiralAngle) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Center eye
+  const eyeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+  eyeGrad.addColorStop(0, 'rgba(50, 80, 120, 0.8)');
+  eyeGrad.addColorStop(1, 'rgba(50, 80, 120, 0)');
+  ctx.fillStyle = eyeGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Draw boss
+export function drawBoss(ctx: CanvasRenderingContext2D, boss: Boss): void {
+  ctx.save();
+  ctx.translate(boss.position.x, boss.position.y);
+
+  // Boss cloud body
+  const cloudGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, boss.size);
+
+  if (boss.bossType === 'rain_thunder') {
+    cloudGrad.addColorStop(0, '#6688AA');
+    cloudGrad.addColorStop(0.7, '#445566');
+    cloudGrad.addColorStop(1, '#223344');
+  } else if (boss.bossType === 'lightning') {
+    cloudGrad.addColorStop(0, '#8888CC');
+    cloudGrad.addColorStop(0.7, '#555588');
+    cloudGrad.addColorStop(1, '#333355');
+  } else {
+    cloudGrad.addColorStop(0, '#5577AA');
+    cloudGrad.addColorStop(0.7, '#334466');
+    cloudGrad.addColorStop(1, '#112233');
+  }
+
+  // Draw cloud shape (multiple overlapping circles)
+  ctx.fillStyle = cloudGrad;
+  ctx.beginPath();
+  ctx.arc(-boss.size * 0.4, 0, boss.size * 0.7, 0, Math.PI * 2);
+  ctx.arc(boss.size * 0.4, 0, boss.size * 0.7, 0, Math.PI * 2);
+  ctx.arc(0, -boss.size * 0.2, boss.size * 0.8, 0, Math.PI * 2);
+  ctx.arc(-boss.size * 0.6, boss.size * 0.2, boss.size * 0.5, 0, Math.PI * 2);
+  ctx.arc(boss.size * 0.6, boss.size * 0.2, boss.size * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Angry eyes
+  ctx.fillStyle = '#FF4444';
+  ctx.beginPath();
+  ctx.arc(-boss.size * 0.25, -boss.size * 0.1, 8, 0, Math.PI * 2);
+  ctx.arc(boss.size * 0.25, -boss.size * 0.1, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye glow
+  ctx.fillStyle = '#FFFF00';
+  ctx.beginPath();
+  ctx.arc(-boss.size * 0.22, -boss.size * 0.13, 3, 0, Math.PI * 2);
+  ctx.arc(boss.size * 0.28, -boss.size * 0.13, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Health bar
+  const barWidth = boss.size * 2;
+  const barHeight = 8;
+  const healthPercent = boss.health / boss.maxHealth;
+
+  // Background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(-barWidth / 2, -boss.size - 20, barWidth, barHeight);
+
+  // Health (color changes based on health)
+  let healthColor = '#00FF00';
+  if (healthPercent < 0.3) healthColor = '#FF0000';
+  else if (healthPercent < 0.6) healthColor = '#FFAA00';
+
+  ctx.fillStyle = healthColor;
+  ctx.fillRect(-barWidth / 2, -boss.size - 20, barWidth * healthPercent, barHeight);
+
+  // Border
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-barWidth / 2, -boss.size - 20, barWidth, barHeight);
+
+  // Boss name
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 14px Arial';
+  ctx.textAlign = 'center';
+  const bossName = boss.bossType === 'rain_thunder' ? 'STORM CLOUD' :
+                   boss.bossType === 'lightning' ? 'LIGHTNING LORD' : 'HURRICANE KING';
+  ctx.fillText(bossName, 0, -boss.size - 30);
 
   ctx.restore();
 }
@@ -464,10 +605,28 @@ export interface RenderState {
   unicorns: Unicorn[];
   leprechauns: Leprechaun[];
   potOfGold: PotOfGold;
+  boss: Boss | null;
+  rainDrops: RainDrop[];
+  thunderFlash: number;
+  lightningBolts: LightningBolt[];
+  hurricaneAngle: number;
+  screenShake: Vector2;
 }
 
 export function renderGame(ctx: CanvasRenderingContext2D, state: RenderState): void {
+  ctx.save();
+
+  // Apply screen shake
+  if (state.screenShake) {
+    ctx.translate(state.screenShake.x, state.screenShake.y);
+  }
+
   clearCanvas(ctx);
+
+  // Draw hurricane effect behind everything
+  if (state.boss && state.boss.bossType === 'hurricane') {
+    drawHurricane(ctx, state.hurricaneAngle, GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2);
+  }
 
   drawPotOfGold(ctx, state.potOfGold);
 
@@ -479,20 +638,26 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderState): v
     drawLeprechaun(ctx, leprechaun);
   }
 
-  // Draw drain beam if draining
-  if (state.player.isDraining && state.player.drainTargetId) {
-    const target = state.leprechauns.find(l => l.id === state.player.drainTargetId);
-    if (target) {
-      drawDrainBeam(
-        ctx,
-        state.player.position.x,
-        state.player.position.y,
-        target.position.x,
-        target.position.y,
-        target.drainProgress / target.maxDrainTime
-      );
-    }
+  drawPlayer(ctx, state.player);
+
+  // Draw boss
+  if (state.boss) {
+    drawBoss(ctx, state.boss);
   }
 
-  drawPlayer(ctx, state.player);
+  // Draw weather effects on top
+  if (state.rainDrops && state.rainDrops.length > 0) {
+    drawRain(ctx, state.rainDrops);
+  }
+
+  if (state.lightningBolts && state.lightningBolts.length > 0) {
+    drawLightning(ctx, state.lightningBolts);
+  }
+
+  // Thunder flash overlay (on top of everything)
+  if (state.thunderFlash > 0) {
+    drawThunderFlash(ctx, state.thunderFlash);
+  }
+
+  ctx.restore();
 }

@@ -1,22 +1,38 @@
 // ==============================================================================
-// file_id: SOM-SCR-0001-v0.2.0
+// file_id: SOM-SCR-0001-v0.3.0
 // name: gameStore.ts
-// description: Zustand store for game state management - drain mechanic
+// description: Zustand store for game state management - with boss battles
 // project_id: UNI-HUNT
 // category: store
-// tags: [zustand, state, game, drain]
+// tags: [zustand, state, game, drain, boss]
 // created: 2025-12-25
 // modified: 2025-12-25
-// version: 0.2.0
+// version: 0.3.0
 // agent_id: AGENT-PRIME-002
 // execution: import { useGameStore } from '@/stores/gameStore'
 // ==============================================================================
 
 import { create } from 'zustand';
-import { GamePhase, RainbowColor, RAINBOW_COLORS } from '@/types/game';
-import { Player, Unicorn, Leprechaun, PotOfGold } from '@/types/entities';
+import { GamePhase, RainbowColor, RAINBOW_COLORS, Vector2 } from '@/types/game';
+import { Player, Unicorn, Leprechaun, PotOfGold, Boss, BossType } from '@/types/entities';
 import { GAME_CONFIG } from '@/lib/config/game-config';
-import { getLevelConfig } from '@/lib/config/level-config';
+import { getLevelConfig, isBossLevel } from '@/lib/config/level-config';
+
+// Weather effect particles
+export interface RainDrop {
+  x: number;
+  y: number;
+  speed: number;
+  length: number;
+}
+
+export interface LightningBolt {
+  points: Vector2[];
+  alpha: number;
+  targetPos: Vector2 | null;
+  isWarning: boolean;
+  warningTimer: number;
+}
 
 interface GameStore {
   // Game state
@@ -33,10 +49,19 @@ interface GameStore {
   unicorns: Unicorn[];
   leprechauns: Leprechaun[];
   potOfGold: PotOfGold;
+  boss: Boss | null;
+
+  // Weather effects
+  rainDrops: RainDrop[];
+  thunderFlash: number;
+  lightningBolts: LightningBolt[];
+  hurricaneAngle: number;
+  screenShake: Vector2;
 
   // Timing
   unicornSpawnTimer: number;
   leprechaunSpawnTimer: number;
+  bossAttackTimer: number;
 
   // Actions
   startGame: () => void;
@@ -58,13 +83,27 @@ interface GameStore {
   stealRainbowColor: (leprechaunId: string) => void;
   restoreRainbowColor: () => void;
 
+  // Boss actions
+  spawnBoss: (bossType: BossType) => void;
+  damageBoss: (amount: number) => void;
+  defeatBoss: () => void;
+  triggerLightning: (targetPos: Vector2) => void;
+  hurricaneThrow: () => void;
+
   // Bulk updates for game loop
   updateEntities: (updates: {
     player?: Partial<Player>;
     unicorns?: Unicorn[];
     leprechauns?: Leprechaun[];
+    boss?: Partial<Boss> | null;
     unicornSpawnTimer?: number;
     leprechaunSpawnTimer?: number;
+    bossAttackTimer?: number;
+    rainDrops?: RainDrop[];
+    thunderFlash?: number;
+    lightningBolts?: LightningBolt[];
+    hurricaneAngle?: number;
+    screenShake?: Vector2;
   }) => void;
 }
 
@@ -93,6 +132,35 @@ function createPotOfGold(): PotOfGold {
   };
 }
 
+function createBoss(bossType: BossType): Boss {
+  const levelConfig = getLevelConfig(
+    bossType === 'rain_thunder' ? 3 : bossType === 'lightning' ? 6 : 9
+  );
+  const bossConfig = levelConfig.bossConfig!;
+
+  return {
+    id: 'boss',
+    position: { x: GAME_CONFIG.CANVAS_WIDTH / 2, y: 80 },
+    velocity: { x: 0, y: 0 },
+    size: 60,
+    rotation: 0,
+    active: true,
+    bossType,
+    health: bossConfig.health,
+    maxHealth: bossConfig.health,
+    phase: 1,
+    isVulnerable: true,
+    vulnerableTimer: 0,
+    attackTimer: 0,
+    attackCooldown: bossConfig.attackCooldown,
+    rainIntensity: bossConfig.rainIntensity,
+    thunderTimer: 0,
+    lightningTargets: [],
+    hurricaneAngle: 0,
+    hurricaneSpeed: bossType === 'hurricane' ? 2 : 0,
+  };
+}
+
 function getInitialState() {
   const levelConfig = getLevelConfig(1);
   return {
@@ -107,8 +175,15 @@ function getInitialState() {
     unicorns: [] as Unicorn[],
     leprechauns: [] as Leprechaun[],
     potOfGold: createPotOfGold(),
+    boss: null as Boss | null,
+    rainDrops: [] as RainDrop[],
+    thunderFlash: 0,
+    lightningBolts: [] as LightningBolt[],
+    hurricaneAngle: 0,
+    screenShake: { x: 0, y: 0 } as Vector2,
     unicornSpawnTimer: 0,
     leprechaunSpawnTimer: 0,
+    bossAttackTimer: 0,
   };
 }
 
@@ -146,14 +221,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newLevel = state.level + 1;
     const levelConfig = getLevelConfig(newLevel);
 
+    // Check if next level is a boss level
+    const isBoss = isBossLevel(newLevel);
+    let boss: Boss | null = null;
+    if (isBoss && levelConfig.bossConfig) {
+      boss = createBoss(levelConfig.bossConfig.bossType);
+    }
+
     set({
       level: newLevel,
       gold: 0,
       goldRequired: levelConfig.goldRequired,
       unicorns: [],
       leprechauns: [],
+      boss,
+      rainDrops: [],
+      thunderFlash: 0,
+      lightningBolts: [],
+      hurricaneAngle: 0,
+      screenShake: { x: 0, y: 0 },
       unicornSpawnTimer: 0,
       leprechaunSpawnTimer: 0,
+      bossAttackTimer: 0,
       phase: 'playing',
       player: createInitialPlayer(),
     });
@@ -203,8 +292,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       score: newScore,
     });
 
-    // Check win condition
-    if (newGold >= state.goldRequired) {
+    // Check win condition (only on non-boss levels)
+    const levelConfig = getLevelConfig(state.level);
+    if (!levelConfig.isBossLevel && newGold >= state.goldRequired) {
       set({ phase: 'victory' });
     }
   },
@@ -265,14 +355,102 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  // Boss actions
+  spawnBoss: (bossType) => {
+    const boss = createBoss(bossType);
+    set({ boss });
+  },
+
+  damageBoss: (amount) => {
+    const state = get();
+    if (!state.boss) return;
+
+    const newHealth = Math.max(0, state.boss.health - amount);
+
+    if (newHealth <= 0) {
+      get().defeatBoss();
+    } else {
+      set({
+        boss: { ...state.boss, health: newHealth },
+        screenShake: { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 },
+      });
+    }
+  },
+
+  defeatBoss: () => {
+    const state = get();
+    set({
+      boss: null,
+      rainDrops: [],
+      thunderFlash: 0,
+      lightningBolts: [],
+      screenShake: { x: 0, y: 0 },
+      score: state.score + 1000,
+      phase: 'victory',
+    });
+  },
+
+  triggerLightning: (targetPos) => {
+    const state = get();
+    // Create lightning bolt with warning
+    const newBolt: LightningBolt = {
+      points: [],
+      alpha: 1,
+      targetPos,
+      isWarning: true,
+      warningTimer: 1.0, // 1 second warning
+    };
+    set({
+      lightningBolts: [...state.lightningBolts, newBolt],
+    });
+  },
+
+  hurricaneThrow: () => {
+    const state = get();
+    // Apply random force to all unicorns and leprechauns
+    const levelConfig = getLevelConfig(state.level);
+    const throwForce = levelConfig.bossConfig?.hurricaneThrowForce || 200;
+
+    const thrownUnicorns = state.unicorns.map((u) => ({
+      ...u,
+      velocity: {
+        x: (Math.random() - 0.5) * throwForce,
+        y: (Math.random() - 0.5) * throwForce,
+      },
+    }));
+
+    const thrownLeprechauns = state.leprechauns.map((l) => ({
+      ...l,
+      velocity: {
+        x: (Math.random() - 0.5) * throwForce,
+        y: (Math.random() - 0.5) * throwForce,
+      },
+    }));
+
+    set({
+      unicorns: thrownUnicorns,
+      leprechauns: thrownLeprechauns,
+      screenShake: { x: (Math.random() - 0.5) * 20, y: (Math.random() - 0.5) * 20 },
+    });
+  },
+
   updateEntities: (updates) => {
     set((state) => ({
       ...state,
       ...(updates.player && { player: { ...state.player, ...updates.player } }),
       ...(updates.unicorns !== undefined && { unicorns: updates.unicorns }),
       ...(updates.leprechauns !== undefined && { leprechauns: updates.leprechauns }),
+      ...(updates.boss !== undefined && {
+        boss: updates.boss === null ? null : state.boss ? { ...state.boss, ...updates.boss } : null
+      }),
       ...(updates.unicornSpawnTimer !== undefined && { unicornSpawnTimer: updates.unicornSpawnTimer }),
       ...(updates.leprechaunSpawnTimer !== undefined && { leprechaunSpawnTimer: updates.leprechaunSpawnTimer }),
+      ...(updates.bossAttackTimer !== undefined && { bossAttackTimer: updates.bossAttackTimer }),
+      ...(updates.rainDrops !== undefined && { rainDrops: updates.rainDrops }),
+      ...(updates.thunderFlash !== undefined && { thunderFlash: updates.thunderFlash }),
+      ...(updates.lightningBolts !== undefined && { lightningBolts: updates.lightningBolts }),
+      ...(updates.hurricaneAngle !== undefined && { hurricaneAngle: updates.hurricaneAngle }),
+      ...(updates.screenShake !== undefined && { screenShake: updates.screenShake }),
     }));
   },
 }));

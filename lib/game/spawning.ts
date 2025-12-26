@@ -88,9 +88,11 @@ export function createLeprechaun(speed: number): Leprechaun {
     active: true,
     speed,
     targetColor: null,
-    drainProgress: 0,
-    maxDrainTime: GAME_CONFIG.LEPRECHAUN_DRAIN_TIME,
-    isBeingDrained: false,
+    tapCount: 0,
+    tapsRequired: GAME_CONFIG.LEPRECHAUN_TAPS_REQUIRED,
+    lastTapTime: 0,
+    stunTimer: 0,
+    isStunned: false,
   };
 }
 
@@ -139,19 +141,45 @@ export function updateUnicornWander(unicorn: Unicorn, deltaTime: number): Unicor
 export function updateLeprechaunMovement(
   leprechaun: Leprechaun,
   potPosition: Vector2,
-  deltaTime: number
+  deltaTime: number,
+  currentTime: number
 ): Leprechaun {
-  // If being drained, slow down significantly
-  const speedMultiplier = leprechaun.isBeingDrained ? 0.2 : 1;
+  // Update stun timer
+  let stunTimer = leprechaun.stunTimer;
+  let isStunned = leprechaun.isStunned;
+
+  if (isStunned) {
+    stunTimer -= deltaTime;
+    if (stunTimer <= 0) {
+      stunTimer = 0;
+      isStunned = false;
+    }
+  }
+
+  // Decay tap count if not tapped recently
+  let tapCount = leprechaun.tapCount;
+  if (tapCount > 0 && currentTime - leprechaun.lastTapTime > GAME_CONFIG.TAP_DECAY_TIME) {
+    tapCount = Math.max(0, tapCount - deltaTime * 2); // Decay 2 taps per second
+  }
+
+  // If stunned, don't move
+  if (isStunned) {
+    return {
+      ...leprechaun,
+      stunTimer,
+      isStunned,
+      tapCount,
+      velocity: { x: 0, y: 0 },
+    };
+  }
 
   // Move directly toward pot of gold
   const dx = potPosition.x - leprechaun.position.x;
   const dy = potPosition.y - leprechaun.position.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  const effectiveSpeed = leprechaun.speed * speedMultiplier;
-  const vx = distance > 0 ? (dx / distance) * effectiveSpeed : 0;
-  const vy = distance > 0 ? (dy / distance) * effectiveSpeed : 0;
+  const vx = distance > 0 ? (dx / distance) * leprechaun.speed : 0;
+  const vy = distance > 0 ? (dy / distance) * leprechaun.speed : 0;
 
   return {
     ...leprechaun,
@@ -161,6 +189,9 @@ export function updateLeprechaunMovement(
     },
     velocity: { x: vx, y: vy },
     rotation: Math.atan2(vy, vx),
+    stunTimer,
+    isStunned,
+    tapCount,
   };
 }
 
