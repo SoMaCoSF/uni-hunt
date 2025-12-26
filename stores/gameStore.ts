@@ -72,6 +72,7 @@ interface GameStore {
   restartGame: () => void;
   pauseGame: () => void;
   resumeGame: () => void;
+  quitToMenu: () => void;
   nextLevel: () => void;
 
   // Entity actions
@@ -228,6 +229,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   resumeGame: () => {
     set({ phase: 'playing' });
+  },
+
+  quitToMenu: () => {
+    set({ ...getInitialState() });
   },
 
   nextLevel: () => {

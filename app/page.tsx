@@ -68,10 +68,15 @@ export default function Home() {
     <main className="game-fullscreen">
       {/* Rotate device hint for portrait mobile */}
       {isPortrait && (
-        <div className="rotate-hint fixed inset-0 bg-black/90 z-50 flex-col items-center justify-center text-white text-center p-8">
-          <div className="text-6xl mb-4">📱</div>
-          <div className="text-xl font-bold mb-2">Rotate Your Device</div>
-          <div className="text-gray-400">For the best experience, please rotate to landscape mode</div>
+        <div className="rotate-hint fixed inset-0 bg-black/95 z-50 flex-col items-center justify-center text-white text-center p-8">
+          <div className="text-6xl mb-6 animate-bounce">📱 ↻</div>
+          <div className="text-2xl font-bold mb-3 text-yellow-400">Please Rotate Your Device</div>
+          <div className="text-lg text-gray-300 mb-4">
+            Unicorn Hunt plays best in <strong>landscape mode</strong>
+          </div>
+          <div className="text-sm text-gray-400">
+            Turn your phone sideways for full control of your rainbow net and power-ups!
+          </div>
         </div>
       )}
 

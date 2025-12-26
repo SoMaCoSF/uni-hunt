@@ -31,7 +31,7 @@ export function HUD() {
     >
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <div className="text-xs text-gray-400 uppercase tracking-wide">Rainbow Power</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wide">🌈 Rainbow Health</div>
           <RainbowHealthBar />
         </div>
 

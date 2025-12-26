@@ -45,17 +45,20 @@ export function MenuScreen({ onStart }: MenuScreenProps) {
           Catch unicorns with your rainbow net to collect gold!
           <br />
           <span className="text-red-400">Beware the leprechauns!</span>
+          <br />
+          <span className="text-purple-400 text-base">Complete 9 levels including 3 epic boss battles!</span>
         </p>
 
         <div className="bg-gray-900/80 rounded-lg p-6 mb-8 max-w-sm mx-auto text-left">
           <h3 className="text-lg font-bold text-white mb-3">How to Play:</h3>
-          <ul className="text-gray-300 space-y-2 text-sm">
-            <li>Move mouse to control your rainbow net</li>
-            <li>Catch unicorns to earn gold</li>
-            <li>Click to shoot leprechauns</li>
-            <li>Leprechauns steal rainbow colors!</li>
-            <li>Lose all colors = Game Over</li>
-            <li>Collect enough gold to win each level</li>
+          <ul className="text-gray-300 space-y-2 text-base">
+            <li>🌈 <strong>Move net</strong>: Mouse/tap to control your rainbow net</li>
+            <li>🦄 <strong>Catch unicorns</strong>: Earn gold & charge power-ups!</li>
+            <li>⚡ <strong>Tap leprechauns</strong>: Click/tap 5 times to banish them</li>
+            <li>💚 <strong>Restore colors</strong>: Every 3 leprechauns banished = +1 color!</li>
+            <li>💥 <strong>Power-up blast</strong>: Catch 9 unicorns = 9 rainbow lasers!</li>
+            <li>☁️ <strong>Boss battles</strong>: Storm Cloud (Lv3), Lightning Lord (Lv6), Hurricane King (Lv9)</li>
+            <li>💔 <strong>Lose all colors</strong> = Game Over</li>
           </ul>
         </div>
 

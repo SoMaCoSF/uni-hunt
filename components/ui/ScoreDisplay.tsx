@@ -23,11 +23,16 @@ export function ScoreDisplay() {
   const goldRequired = useGameStore((state) => state.goldRequired);
   const level = useGameStore((state) => state.level);
   const leprechaunsBanished = useGameStore((state) => state.leprechaunsBanished);
+  const harvestCount = useGameStore((state) => state.harvestCount);
+  const rainbowColors = useGameStore((state) => state.rainbowColors);
 
   const levelConfig = getLevelConfig(level);
   const isBossLevel = levelConfig.isBossLevel;
 
   const goldProgress = goldRequired > 0 ? Math.min((gold / goldRequired) * 100, 100) : 0;
+
+  // Calculate restoration progress (every 3 harvests = 1 color restored)
+  const untilRestore = rainbowColors.length < 7 ? 3 - (harvestCount % 3) : 0;
 
   return (
     <div className="flex flex-col items-end gap-2 text-white">
@@ -35,10 +40,11 @@ export function ScoreDisplay() {
         Score: <span className="text-yellow-400">{score.toLocaleString()}</span>
       </div>
 
+      {/* Level with progression */}
       <div className="text-lg">
-        Level: <span className="text-purple-400">{level}</span>
+        Level: <span className="text-purple-400">{level}/9</span>
         {isBossLevel && (
-          <span className="ml-2 text-red-500 text-sm font-bold animate-pulse">BOSS</span>
+          <span className="ml-2 text-red-500 text-sm font-bold animate-pulse">⚡ BOSS</span>
         )}
       </div>
 
@@ -56,12 +62,19 @@ export function ScoreDisplay() {
         </div>
       )}
 
-      {/* Leprechauns Banished Counter */}
+      {/* Leprechauns Banished Counter with Restoration Progress */}
       <div className="flex items-center gap-2 mt-2 px-3 py-1 bg-green-900/40 rounded-lg border border-green-700/50">
         <span className="text-lg">🍀</span>
         <div className="flex flex-col items-end">
           <span className="text-xs text-green-400 uppercase tracking-wide">Banished</span>
-          <span className="text-lg font-bold text-green-300">{leprechaunsBanished}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-green-300">{leprechaunsBanished}</span>
+            {untilRestore > 0 && (
+              <span className="text-xs text-purple-300">
+                (⭐ in {untilRestore})
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
