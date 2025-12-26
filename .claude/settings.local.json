@@ -8,7 +8,14 @@
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Unicorn Hunt game\n\nA fun arcade game where you catch unicorns with a rainbow net\nwhile defending your pot of gold from mischievous leprechauns.\n\nFeatures:\n- Rainbow net follows mouse to catch unicorns\n- Click to shoot leprechauns\n- 7-color rainbow health system \\(ROYGBIV\\)\n- 5 progressively harder levels\n- Built with Next.js, TypeScript, Zustand, Canvas\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(gh repo create:*)",
+      "Bash(gh api:*)",
+      "Bash(git -c user.name=\"SoMaCoSF\" -c user.email=\"SoMaCoSF@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nInitial commit: Unicorn Hunt game\n\nA fun arcade game where you catch unicorns with a rainbow net\nwhile defending your pot of gold from mischievous leprechauns.\n\nFeatures:\n- Rainbow net follows mouse to catch unicorns\n- Click to shoot leprechauns\n- 7-color rainbow health system \\(ROYGBIV\\)\n- 5 progressively harder levels\n- Built with Next.js, TypeScript, Zustand, Canvas\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(git -c user.name=\"SoMaCoSF\" -c user.email=\"SoMaCoSF@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nEnhanced graphics and fixed shooting mechanic\n\n- Fixed shooting: projectiles now shoot outward from player position\n- Added twinkling starry background\n- Enhanced player net with animated rotating rainbow rings\n- Added crosshair cursor at player center\n- Improved unicorn sprites with magical aura and floating particles\n- Enhanced leprechaun with evil aura and detailed features\n- Projectiles now have rainbow trails\n- Pot of gold with 3D coins and sparkle effects\n- Added glowing borders and shadows throughout\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

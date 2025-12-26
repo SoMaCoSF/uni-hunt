@@ -41,14 +41,30 @@ export function updateGame(deltaTime: number, inputState: InputState): void {
     shootCooldown: Math.max(0, state.player.shootCooldown - deltaTime),
   };
 
-  // Handle shooting
+  // Handle shooting - shoot outward from player position away from pot center
   if (inputState.justClicked && state.player.shootCooldown <= 0) {
-    const projectile = createProjectile(
-      state.player.position.x,
-      state.player.position.y,
-      inputState.mousePosition.x,
-      inputState.mousePosition.y
-    );
+    const playerX = state.player.position.x;
+    const playerY = state.player.position.y;
+    const centerX = GAME_CONFIG.CANVAS_WIDTH / 2;
+    const centerY = GAME_CONFIG.CANVAS_HEIGHT / 2;
+
+    // Calculate direction from center to player (shooting outward)
+    const dx = playerX - centerX;
+    const dy = playerY - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // If player is near center, shoot toward mouse direction from center
+    let targetX: number, targetY: number;
+    if (distance < 30) {
+      targetX = playerX + (inputState.mousePosition.x - centerX) * 2;
+      targetY = playerY + (inputState.mousePosition.y - centerY) * 2;
+    } else {
+      // Shoot outward from center through player position
+      targetX = playerX + (dx / distance) * 500;
+      targetY = playerY + (dy / distance) * 500;
+    }
+
+    const projectile = createProjectile(playerX, playerY, targetX, targetY);
     useGameStore.getState().addProjectile(projectile);
     newPlayer.shootCooldown = GAME_CONFIG.PLAYER_SHOOT_COOLDOWN;
   }
