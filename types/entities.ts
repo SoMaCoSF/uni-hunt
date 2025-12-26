@@ -65,6 +65,11 @@ export interface Leprechaun extends Entity {
   lastTapTime: number;
   stunTimer: number; // Brief stun after being tapped
   isStunned: boolean;
+  // Teleport mechanic (higher levels)
+  canTeleport: boolean;
+  teleportCooldown: number;
+  lastTeleportTime: number;
+  hasTeleported: boolean; // Tracks if teleported this encounter
 }
 
 export interface PotOfGold extends Entity {

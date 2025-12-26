@@ -166,6 +166,8 @@ export function useGameLoop({ canvasRef }: UseGameLoopOptions) {
         lightningBolts: currentState.lightningBolts,
         hurricaneAngle: currentState.hurricaneAngle,
         screenShake: currentState.screenShake,
+        powerUpLasers: currentState.powerUpLasers,
+        isPowerUpActive: currentState.isPowerUpActive,
       });
 
       animationId = requestAnimationFrame(loop);

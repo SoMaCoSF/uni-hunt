@@ -35,8 +35,11 @@ export interface LevelConfig {
   unicornSpawnRate: number;
   unicornGoldValue: number;
   unicornSpeed: number;
+  unicornSizeMultiplier: number; // Smaller each level (1.0 = full size)
   leprechaunSpawnRate: number;
   leprechaunSpeed: number;
+  leprechaunTapsRequired: number; // 3/6/9 based
+  leprechaunCanTeleport: boolean;
   maxUnicorns: number;
   maxLeprechauns: number;
   // Boss configuration
@@ -45,47 +48,56 @@ export interface LevelConfig {
 }
 
 export const LEVELS: LevelConfig[] = [
-  // Level 1 - Tutorial
+  // Level 1 - Tutorial (3 taps, no teleport)
   {
     level: 1,
-    goldRequired: 100,
+    goldRequired: 90, // Divisible by 9
     unicornSpawnRate: 2.0,
-    unicornGoldValue: 10,
+    unicornGoldValue: 9,
     unicornSpeed: 60,
+    unicornSizeMultiplier: 1.0,
     leprechaunSpawnRate: 6.0,
     leprechaunSpeed: 40,
-    maxUnicorns: 5,
-    maxLeprechauns: 2,
-    isBossLevel: false,
-  },
-  // Level 2 - Getting started
-  {
-    level: 2,
-    goldRequired: 200,
-    unicornSpawnRate: 1.8,
-    unicornGoldValue: 12,
-    unicornSpeed: 70,
-    leprechaunSpawnRate: 5.0,
-    leprechaunSpeed: 50,
-    maxUnicorns: 7,
+    leprechaunTapsRequired: 3,
+    leprechaunCanTeleport: false,
+    maxUnicorns: 6,
     maxLeprechauns: 3,
     isBossLevel: false,
   },
-  // Level 3 - BOSS: Rain + Thunder
+  // Level 2 - Getting started (3 taps)
+  {
+    level: 2,
+    goldRequired: 180,
+    unicornSpawnRate: 1.8,
+    unicornGoldValue: 9,
+    unicornSpeed: 70,
+    unicornSizeMultiplier: 0.95,
+    leprechaunSpawnRate: 5.0,
+    leprechaunSpeed: 50,
+    leprechaunTapsRequired: 3,
+    leprechaunCanTeleport: false,
+    maxUnicorns: 9,
+    maxLeprechauns: 3,
+    isBossLevel: false,
+  },
+  // Level 3 - BOSS: Storm Cloud (6 damage per tap, 54 HP = 9 taps)
   {
     level: 3,
-    goldRequired: 0, // Boss levels require defeating the boss
+    goldRequired: 0,
     unicornSpawnRate: 3.0,
-    unicornGoldValue: 15,
+    unicornGoldValue: 12,
     unicornSpeed: 80,
+    unicornSizeMultiplier: 0.9,
     leprechaunSpawnRate: 4.0,
     leprechaunSpeed: 60,
-    maxUnicorns: 4,
+    leprechaunTapsRequired: 3,
+    leprechaunCanTeleport: false,
+    maxUnicorns: 6,
     maxLeprechauns: 3,
     isBossLevel: true,
     bossConfig: {
       bossType: 'rain_thunder',
-      health: 100,
+      health: 54, // 9 taps at 6 damage
       attackCooldown: 3.0,
       rainIntensity: 0.7,
       thunderFrequency: 4.0,
@@ -95,97 +107,115 @@ export const LEVELS: LevelConfig[] = [
       hurricaneThrowForce: 0,
     },
   },
-  // Level 4 - Post-boss recovery
+  // Level 4 - Harder (6 taps, teleport starts)
   {
     level: 4,
-    goldRequired: 400,
+    goldRequired: 360,
     unicornSpawnRate: 1.5,
-    unicornGoldValue: 18,
+    unicornGoldValue: 12,
     unicornSpeed: 85,
+    unicornSizeMultiplier: 0.85,
     leprechaunSpawnRate: 4.5,
     leprechaunSpeed: 65,
-    maxUnicorns: 8,
-    maxLeprechauns: 4,
+    leprechaunTapsRequired: 6,
+    leprechaunCanTeleport: true,
+    maxUnicorns: 9,
+    maxLeprechauns: 6,
     isBossLevel: false,
   },
-  // Level 5 - Building up
+  // Level 5 - Intense (6 taps)
   {
     level: 5,
-    goldRequired: 550,
+    goldRequired: 540,
     unicornSpawnRate: 1.3,
-    unicornGoldValue: 20,
+    unicornGoldValue: 15,
     unicornSpeed: 90,
+    unicornSizeMultiplier: 0.8,
     leprechaunSpawnRate: 4.0,
     leprechaunSpeed: 70,
-    maxUnicorns: 10,
-    maxLeprechauns: 5,
-    isBossLevel: false,
-  },
-  // Level 6 - BOSS: Lightning Storm (Rain + Thunder + Lightning)
-  {
-    level: 6,
-    goldRequired: 0,
-    unicornSpawnRate: 2.5,
-    unicornGoldValue: 22,
-    unicornSpeed: 95,
-    leprechaunSpawnRate: 3.5,
-    leprechaunSpeed: 75,
-    maxUnicorns: 5,
-    maxLeprechauns: 4,
-    isBossLevel: true,
-    bossConfig: {
-      bossType: 'lightning',
-      health: 150,
-      attackCooldown: 2.5,
-      rainIntensity: 0.9,
-      thunderFrequency: 3.0,
-      lightningEnabled: true,
-      lightningDamage: 1, // Steals 1 rainbow color
-      hurricaneEnabled: false,
-      hurricaneThrowForce: 0,
-    },
-  },
-  // Level 7 - Intense
-  {
-    level: 7,
-    goldRequired: 700,
-    unicornSpawnRate: 1.2,
-    unicornGoldValue: 25,
-    unicornSpeed: 100,
-    leprechaunSpawnRate: 3.5,
-    leprechaunSpeed: 80,
+    leprechaunTapsRequired: 6,
+    leprechaunCanTeleport: true,
     maxUnicorns: 12,
     maxLeprechauns: 6,
     isBossLevel: false,
   },
-  // Level 8 - Pre-final
+  // Level 6 - BOSS: Lightning Lord (108 HP = 18 taps)
   {
-    level: 8,
-    goldRequired: 900,
-    unicornSpawnRate: 1.0,
-    unicornGoldValue: 28,
-    unicornSpeed: 110,
-    leprechaunSpawnRate: 3.0,
-    leprechaunSpeed: 85,
-    maxUnicorns: 14,
-    maxLeprechauns: 7,
+    level: 6,
+    goldRequired: 0,
+    unicornSpawnRate: 2.5,
+    unicornGoldValue: 18,
+    unicornSpeed: 95,
+    unicornSizeMultiplier: 0.75,
+    leprechaunSpawnRate: 3.5,
+    leprechaunSpeed: 75,
+    leprechaunTapsRequired: 6,
+    leprechaunCanTeleport: true,
+    maxUnicorns: 6,
+    maxLeprechauns: 6,
+    isBossLevel: true,
+    bossConfig: {
+      bossType: 'lightning',
+      health: 108, // 18 taps at 6 damage
+      attackCooldown: 2.5,
+      rainIntensity: 0.9,
+      thunderFrequency: 3.0,
+      lightningEnabled: true,
+      lightningDamage: 1,
+      hurricaneEnabled: false,
+      hurricaneThrowForce: 0,
+    },
+  },
+  // Level 7 - Very hard (9 taps, fast teleport)
+  {
+    level: 7,
+    goldRequired: 810,
+    unicornSpawnRate: 1.2,
+    unicornGoldValue: 18,
+    unicornSpeed: 100,
+    unicornSizeMultiplier: 0.7,
+    leprechaunSpawnRate: 3.5,
+    leprechaunSpeed: 80,
+    leprechaunTapsRequired: 9,
+    leprechaunCanTeleport: true,
+    maxUnicorns: 15,
+    maxLeprechauns: 9,
     isBossLevel: false,
   },
-  // Level 9 - FINAL BOSS: Hurricane
+  // Level 8 - Pre-final (9 taps)
+  {
+    level: 8,
+    goldRequired: 990,
+    unicornSpawnRate: 1.0,
+    unicornGoldValue: 18,
+    unicornSpeed: 110,
+    unicornSizeMultiplier: 0.6,
+    leprechaunSpawnRate: 3.0,
+    leprechaunSpeed: 85,
+    leprechaunTapsRequired: 9,
+    leprechaunCanTeleport: true,
+    maxUnicorns: 18,
+    maxLeprechauns: 9,
+    isBossLevel: false,
+  },
+  // Level 9 - FINAL BOSS: Hurricane King (162 HP = 27 taps)
   {
     level: 9,
     goldRequired: 0,
     unicornSpawnRate: 2.0,
-    unicornGoldValue: 30,
+    unicornGoldValue: 27,
     unicornSpeed: 120,
+    unicornSizeMultiplier: 0.5,
     leprechaunSpawnRate: 2.5,
     leprechaunSpeed: 90,
-    maxUnicorns: 6,
-    maxLeprechauns: 5,
+    leprechaunTapsRequired: 9,
+    leprechaunCanTeleport: true,
+    maxUnicorns: 9,
+    maxLeprechauns: 9,
     isBossLevel: true,
     bossConfig: {
       bossType: 'hurricane',
-      health: 200,
+      health: 162, // 27 taps at 6 damage
       attackCooldown: 2.0,
       rainIntensity: 1.0,
       thunderFrequency: 2.0,

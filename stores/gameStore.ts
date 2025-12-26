@@ -43,6 +43,10 @@ interface GameStore {
   goldRequired: number;
   rainbowColors: RainbowColor[];
   harvestCount: number;
+  leprechaunsBanished: number; // Total banished across game
+  powerUpCharge: number; // 0-9, fires at 9
+  isPowerUpActive: boolean;
+  powerUpLasers: { x: number; y: number; angle: number; life: number }[];
 
   // Entities
   player: Player;
@@ -90,6 +94,10 @@ interface GameStore {
   triggerLightning: (targetPos: Vector2) => void;
   hurricaneThrow: () => void;
 
+  // Power-up actions
+  firePowerUpBlast: () => void;
+  updatePowerUpLasers: (deltaTime: number) => void;
+
   // Bulk updates for game loop
   updateEntities: (updates: {
     player?: Partial<Player>;
@@ -104,6 +112,8 @@ interface GameStore {
     lightningBolts?: LightningBolt[];
     hurricaneAngle?: number;
     screenShake?: Vector2;
+    powerUpLasers?: { x: number; y: number; angle: number; life: number }[];
+    isPowerUpActive?: boolean;
   }) => void;
 }
 
@@ -171,6 +181,10 @@ function getInitialState() {
     goldRequired: levelConfig.goldRequired,
     rainbowColors: [...RAINBOW_COLORS],
     harvestCount: 0,
+    leprechaunsBanished: 0,
+    powerUpCharge: 0,
+    isPowerUpActive: false,
+    powerUpLasers: [] as { x: number; y: number; angle: number; life: number }[],
     player: createInitialPlayer(),
     unicorns: [] as Unicorn[],
     leprechauns: [] as Leprechaun[],
@@ -285,12 +299,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const newGold = state.gold + unicorn.goldValue;
     const newScore = state.score + unicorn.goldValue * 10;
+    const newPowerUpCharge = state.powerUpCharge + 1;
 
     set({
       unicorns: state.unicorns.filter((u) => u.id !== id),
       gold: newGold,
       score: newScore,
+      powerUpCharge: newPowerUpCharge,
     });
+
+    // Trigger power-up blast at 9 unicorns
+    if (newPowerUpCharge >= GAME_CONFIG.UNICORNS_FOR_POWERUP) {
+      get().firePowerUpBlast();
+    }
 
     // Check win condition (only on non-boss levels)
     const levelConfig = getLevelConfig(state.level);
@@ -302,11 +323,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   harvestLeprechaun: (id) => {
     const state = get();
     const newHarvestCount = state.harvestCount + 1;
+    const newBanished = state.leprechaunsBanished + 1;
 
     set({
       leprechauns: state.leprechauns.filter((l) => l.id !== id),
       score: state.score + 100,
       harvestCount: newHarvestCount,
+      leprechaunsBanished: newBanished,
     });
 
     // Every 3 harvests, restore a rainbow color
@@ -434,6 +457,58 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  // Power-up blast - shoots 9 rainbow lasers in all directions
+  firePowerUpBlast: () => {
+    const state = get();
+    const playerPos = state.player.position;
+    const laserCount = GAME_CONFIG.POWERUP_LASER_COUNT;
+    const lasers: { x: number; y: number; angle: number; life: number }[] = [];
+
+    // Create 9 lasers evenly distributed in a circle
+    for (let i = 0; i < laserCount; i++) {
+      const angle = (i / laserCount) * Math.PI * 2;
+      lasers.push({
+        x: playerPos.x,
+        y: playerPos.y,
+        angle,
+        life: 1.0, // 1 second lifetime
+      });
+    }
+
+    set({
+      powerUpCharge: 0,
+      isPowerUpActive: true,
+      powerUpLasers: lasers,
+      screenShake: { x: (Math.random() - 0.5) * 15, y: (Math.random() - 0.5) * 15 },
+    });
+  },
+
+  // Update power-up lasers each frame
+  updatePowerUpLasers: (deltaTime: number) => {
+    const state = get();
+    if (!state.isPowerUpActive || state.powerUpLasers.length === 0) return;
+
+    const laserSpeed = 500; // pixels per second
+    const updatedLasers = state.powerUpLasers
+      .map((laser) => ({
+        ...laser,
+        x: laser.x + Math.cos(laser.angle) * laserSpeed * deltaTime,
+        y: laser.y + Math.sin(laser.angle) * laserSpeed * deltaTime,
+        life: laser.life - deltaTime,
+      }))
+      .filter((laser) => laser.life > 0);
+
+    // Check if blast is complete
+    if (updatedLasers.length === 0) {
+      set({
+        isPowerUpActive: false,
+        powerUpLasers: [],
+      });
+    } else {
+      set({ powerUpLasers: updatedLasers });
+    }
+  },
+
   updateEntities: (updates) => {
     set((state) => ({
       ...state,
@@ -451,6 +526,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...(updates.lightningBolts !== undefined && { lightningBolts: updates.lightningBolts }),
       ...(updates.hurricaneAngle !== undefined && { hurricaneAngle: updates.hurricaneAngle }),
       ...(updates.screenShake !== undefined && { screenShake: updates.screenShake }),
+      ...(updates.powerUpLasers !== undefined && { powerUpLasers: updates.powerUpLasers }),
+      ...(updates.isPowerUpActive !== undefined && { isPowerUpActive: updates.isPowerUpActive }),
     }));
   },
 }));

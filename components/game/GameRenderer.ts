@@ -19,38 +19,137 @@ import { RainDrop, LightningBolt } from '@/stores/gameStore';
 
 let animTime = 0;
 
-const stars: { x: number; y: number; size: number; twinkle: number }[] = [];
-for (let i = 0; i < 50; i++) {
+// Multi-layer star system for depth
+interface Star {
+  x: number;
+  y: number;
+  size: number;
+  twinkle: number;
+  layer: number; // 0 = far, 1 = mid, 2 = near
+  hue: number;
+}
+
+const stars: Star[] = [];
+// Far layer - small, slow
+for (let i = 0; i < 30; i++) {
   stars.push({
     x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
     y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
-    size: Math.random() * 2 + 0.5,
+    size: Math.random() * 1 + 0.3,
     twinkle: Math.random() * Math.PI * 2,
+    layer: 0,
+    hue: Math.random() * 60 + 200, // Blue-purple range
+  });
+}
+// Mid layer
+for (let i = 0; i < 25; i++) {
+  stars.push({
+    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
+    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
+    size: Math.random() * 1.5 + 0.5,
+    twinkle: Math.random() * Math.PI * 2,
+    layer: 1,
+    hue: Math.random() * 360, // Any color
+  });
+}
+// Near layer - larger, faster twinkle
+for (let i = 0; i < 15; i++) {
+  stars.push({
+    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
+    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
+    size: Math.random() * 2.5 + 1,
+    twinkle: Math.random() * Math.PI * 2,
+    layer: 2,
+    hue: Math.random() * 60 + 30, // Warm colors (gold, orange)
+  });
+}
+
+// Nebula cloud positions
+interface NebulaCloud {
+  x: number;
+  y: number;
+  radius: number;
+  hue: number;
+  drift: number;
+}
+
+const nebulaClouds: NebulaCloud[] = [];
+for (let i = 0; i < 4; i++) {
+  nebulaClouds.push({
+    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
+    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
+    radius: 100 + Math.random() * 150,
+    hue: Math.random() * 360,
+    drift: Math.random() * Math.PI * 2,
   });
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D): void {
+  animTime += 0.016; // ~60fps delta
+
+  // Animated color-cycling background gradient
+  const cycleHue = (animTime * 5) % 360;
+  const bgColor1 = `hsl(${(cycleHue + 240) % 360}, 30%, 8%)`;
+  const bgColor2 = `hsl(${(cycleHue + 260) % 360}, 40%, 15%)`;
+  const bgColor3 = `hsl(${(cycleHue + 280) % 360}, 25%, 5%)`;
+
   const bgGradient = ctx.createRadialGradient(
     GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2, 0,
-    GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2, GAME_CONFIG.CANVAS_WIDTH
+    GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2, GAME_CONFIG.CANVAS_WIDTH * 0.8
   );
-  bgGradient.addColorStop(0, '#1a1a3e');
-  bgGradient.addColorStop(1, '#0a0a1a');
+  bgGradient.addColorStop(0, bgColor2);
+  bgGradient.addColorStop(0.5, bgColor1);
+  bgGradient.addColorStop(1, bgColor3);
   ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, GAME_CONFIG.CANVAS_WIDTH, GAME_CONFIG.CANVAS_HEIGHT);
 
-  animTime += 0.02;
+  // Draw subtle nebula clouds for depth (very muted)
+  for (const cloud of nebulaClouds) {
+    const cloudX = cloud.x + Math.sin(animTime * 0.1 + cloud.drift) * 20;
+    const cloudY = cloud.y + Math.cos(animTime * 0.08 + cloud.drift) * 15;
+    const cloudHue = (cloud.hue + animTime * 2) % 360;
+
+    const nebulaGrad = ctx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloud.radius);
+    nebulaGrad.addColorStop(0, `hsla(${cloudHue}, 50%, 30%, 0.05)`);
+    nebulaGrad.addColorStop(0.5, `hsla(${cloudHue + 30}, 40%, 20%, 0.03)`);
+    nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = nebulaGrad;
+    ctx.fillRect(0, 0, GAME_CONFIG.CANVAS_WIDTH, GAME_CONFIG.CANVAS_HEIGHT);
+  }
+
+  // Draw stars by layer (far to near for depth)
   for (const star of stars) {
-    const twinkleAlpha = 0.3 + Math.sin(animTime * 2 + star.twinkle) * 0.3;
-    ctx.fillStyle = `rgba(255, 255, 255, ${twinkleAlpha})`;
+    const layerSpeed = [1, 1.5, 2.5][star.layer];
+    const layerAlphaBase = [0.2, 0.35, 0.5][star.layer];
+    const twinkleAlpha = layerAlphaBase + Math.sin(animTime * layerSpeed * 2 + star.twinkle) * 0.25;
+
+    // Color-shifting stars
+    const starHue = (star.hue + animTime * 10) % 360;
+    const starSat = star.layer === 2 ? 60 : 30;
+    const starLight = 70 + star.layer * 10;
+
+    ctx.fillStyle = `hsla(${starHue}, ${starSat}%, ${starLight}%, ${twinkleAlpha})`;
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
     ctx.fill();
+
+    // Add glow to near stars
+    if (star.layer === 2 && twinkleAlpha > 0.5) {
+      const glowGrad = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.size * 4);
+      glowGrad.addColorStop(0, `hsla(${starHue}, 80%, 80%, 0.15)`);
+      glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  ctx.shadowColor = '#8844ff';
-  ctx.shadowBlur = 15;
-  ctx.strokeStyle = '#6644aa';
+  // Animated glowing border with color cycling
+  const borderHue = (cycleHue + 270) % 360;
+  ctx.shadowColor = `hsl(${borderHue}, 60%, 50%)`;
+  ctx.shadowBlur = 15 + Math.sin(animTime * 2) * 5;
+  ctx.strokeStyle = `hsl(${borderHue}, 50%, 40%)`;
   ctx.lineWidth = 3;
   ctx.strokeRect(8, 8, GAME_CONFIG.CANVAS_WIDTH - 16, GAME_CONFIG.CANVAS_HEIGHT - 16);
   ctx.shadowBlur = 0;
@@ -198,30 +297,69 @@ export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): vo
   ctx.translate(unicorn.position.x, unicorn.position.y);
   ctx.rotate(unicorn.rotation);
 
-  const auraGradient = ctx.createRadialGradient(0, 0, unicorn.size, 0, 0, unicorn.size * 2.5);
-  auraGradient.addColorStop(0, 'rgba(255, 200, 255, 0.3)');
-  auraGradient.addColorStop(0.5, 'rgba(200, 150, 255, 0.15)');
+  // Enhanced outer shimmer glow - color shifting
+  const shimmerHue = (animTime * 30) % 360;
+  const shimmerColor = `hsla(${shimmerHue}, 80%, 80%, 0.2)`;
+
+  const auraGradient = ctx.createRadialGradient(0, 0, unicorn.size, 0, 0, unicorn.size * 3);
+  auraGradient.addColorStop(0, shimmerColor);
+  auraGradient.addColorStop(0.3, 'rgba(255, 200, 255, 0.25)');
+  auraGradient.addColorStop(0.6, 'rgba(200, 150, 255, 0.1)');
   auraGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = auraGradient;
   ctx.beginPath();
-  ctx.arc(0, 0, unicorn.size * 2.5, 0, Math.PI * 2);
+  ctx.arc(0, 0, unicorn.size * 3, 0, Math.PI * 2);
   ctx.fill();
 
-  for (let i = 0; i < 4; i++) {
-    const particleAngle = animTime * 2 + (i * Math.PI) / 2;
-    const particleRadius = unicorn.size * 1.5 + Math.sin(animTime * 3 + i) * 5;
+  // Sparkle particles - more and varied
+  for (let i = 0; i < 8; i++) {
+    const particleAngle = animTime * 1.5 + (i * Math.PI) / 4;
+    const particleRadius = unicorn.size * 1.3 + Math.sin(animTime * 3 + i * 1.2) * 8;
     const px = Math.cos(particleAngle) * particleRadius;
     const py = Math.sin(particleAngle) * particleRadius;
-    const particleAlpha = 0.3 + Math.sin(animTime * 4 + i) * 0.2;
+    const particleAlpha = 0.4 + Math.sin(animTime * 5 + i) * 0.3;
+    const particleSize = 1.5 + Math.sin(animTime * 4 + i * 0.7) * 1;
 
-    ctx.fillStyle = `rgba(255, 200, 255, ${particleAlpha})`;
+    // Rainbow sparkles
+    const sparkleHue = (shimmerHue + i * 45) % 360;
+    ctx.fillStyle = `hsla(${sparkleHue}, 100%, 80%, ${particleAlpha})`;
     ctx.beginPath();
-    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.arc(px, py, particleSize, 0, Math.PI * 2);
     ctx.fill();
   }
 
+  // Star sparkles around unicorn
+  for (let i = 0; i < 5; i++) {
+    const starAngle = animTime * 0.8 + (i * Math.PI * 2) / 5;
+    const starDist = unicorn.size * 2 + Math.sin(animTime * 2 + i) * 5;
+    const sx = Math.cos(starAngle) * starDist;
+    const sy = Math.sin(starAngle) * starDist;
+    const starAlpha = 0.3 + Math.sin(animTime * 6 + i * 1.5) * 0.3;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(animTime * 3);
+    ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha})`;
+    // 4-point star
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(1, -1);
+    ctx.lineTo(3, 0);
+    ctx.lineTo(1, 1);
+    ctx.lineTo(0, 3);
+    ctx.lineTo(-1, 1);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-1, -1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Shimmery body with color shifting highlight
   const bodyGradient = ctx.createRadialGradient(-unicorn.size * 0.3, -unicorn.size * 0.3, 0, 0, 0, unicorn.size);
+  const bodyHue = (shimmerHue + 270) % 360; // Slight offset for variety
   bodyGradient.addColorStop(0, '#FFFFFF');
+  bodyGradient.addColorStop(0.4, `hsla(${bodyHue}, 30%, 95%, 1)`);
   bodyGradient.addColorStop(0.7, '#F8F0FF');
   bodyGradient.addColorStop(1, '#E8D8F8');
   ctx.fillStyle = bodyGradient;
@@ -229,15 +367,30 @@ export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): vo
   ctx.arc(0, 0, unicorn.size, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = '#DDB8FF';
+  // Shimmery outline
+  const outlineGradient = ctx.createLinearGradient(-unicorn.size, 0, unicorn.size, 0);
+  outlineGradient.addColorStop(0, `hsla(${shimmerHue}, 60%, 75%, 0.8)`);
+  outlineGradient.addColorStop(0.5, `hsla(${(shimmerHue + 60) % 360}, 60%, 85%, 1)`);
+  outlineGradient.addColorStop(1, `hsla(${(shimmerHue + 120) % 360}, 60%, 75%, 0.8)`);
+  ctx.strokeStyle = outlineGradient;
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Glowing horn
   const hornLength = 18;
+  const hornGlow = ctx.createRadialGradient(unicorn.size + hornLength * 0.7, 0, 0, unicorn.size + hornLength * 0.7, 0, 15);
+  hornGlow.addColorStop(0, 'rgba(255, 223, 0, 0.5)');
+  hornGlow.addColorStop(1, 'rgba(255, 223, 0, 0)');
+  ctx.fillStyle = hornGlow;
+  ctx.beginPath();
+  ctx.arc(unicorn.size + hornLength * 0.7, 0, 15, 0, Math.PI * 2);
+  ctx.fill();
+
   const hornGradient = ctx.createLinearGradient(unicorn.size, 0, unicorn.size + hornLength, 0);
   hornGradient.addColorStop(0, '#FFD700');
-  hornGradient.addColorStop(0.5, '#FFEC8B');
-  hornGradient.addColorStop(1, '#FFF8DC');
+  hornGradient.addColorStop(0.3, '#FFEC8B');
+  hornGradient.addColorStop(0.7, '#FFF8DC');
+  hornGradient.addColorStop(1, '#FFFFEE');
 
   ctx.fillStyle = hornGradient;
   ctx.beginPath();
@@ -247,24 +400,37 @@ export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): vo
   ctx.closePath();
   ctx.fill();
 
+  // Animated flowing rainbow mane
   const maneColors = [RAINBOW_HEX.red, RAINBOW_HEX.orange, RAINBOW_HEX.yellow, RAINBOW_HEX.green, RAINBOW_HEX.blue, RAINBOW_HEX.violet];
   ctx.lineWidth = 4;
   for (let i = 0; i < maneColors.length; i++) {
-    const waveOffset = Math.sin(animTime * 3 + i * 0.5) * 3;
+    const waveOffset = Math.sin(animTime * 3 + i * 0.5) * 4;
+    const waveWidth = 3 + Math.sin(animTime * 2 + i) * 0.5;
     ctx.strokeStyle = maneColors[i];
+    ctx.lineWidth = waveWidth;
     ctx.beginPath();
     ctx.arc(-5, waveOffset, unicorn.size + 4 + i * 4, Math.PI * 0.55, Math.PI * 1.45);
     ctx.stroke();
   }
 
+  // Sparkling eye
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.ellipse(unicorn.size * 0.4, -unicorn.size * 0.2, 4, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Eye highlight with sparkle
   ctx.fillStyle = '#FFF';
   ctx.beginPath();
   ctx.arc(unicorn.size * 0.5, -unicorn.size * 0.3, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Secondary eye sparkle that moves
+  const sparkleX = unicorn.size * 0.35 + Math.sin(animTime * 2) * 2;
+  const sparkleY = -unicorn.size * 0.15 + Math.cos(animTime * 2) * 1;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.beginPath();
+  ctx.arc(sparkleX, sparkleY, 1, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -600,6 +766,68 @@ export function drawBoss(ctx: CanvasRenderingContext2D, boss: Boss): void {
   ctx.restore();
 }
 
+// Draw power-up rainbow lasers
+export function drawPowerUpLasers(
+  ctx: CanvasRenderingContext2D,
+  lasers: { x: number; y: number; angle: number; life: number }[]
+): void {
+  const colors = [
+    RAINBOW_HEX.red, RAINBOW_HEX.orange, RAINBOW_HEX.yellow,
+    RAINBOW_HEX.green, RAINBOW_HEX.blue, RAINBOW_HEX.indigo,
+    RAINBOW_HEX.violet, RAINBOW_HEX.red, RAINBOW_HEX.orange
+  ];
+
+  for (let i = 0; i < lasers.length; i++) {
+    const laser = lasers[i];
+    const color = colors[i % colors.length];
+
+    ctx.save();
+    ctx.translate(laser.x, laser.y);
+    ctx.rotate(laser.angle);
+
+    // Laser glow
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+
+    // Main laser beam
+    const laserLength = 60;
+    const gradient = ctx.createLinearGradient(0, 0, laserLength, 0);
+    gradient.addColorStop(0, `${color}00`);
+    gradient.addColorStop(0.2, color);
+    gradient.addColorStop(0.8, color);
+    gradient.addColorStop(1, `${color}00`);
+
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(laserLength, 0);
+    ctx.stroke();
+
+    // Core bright line
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(5, 0);
+    ctx.lineTo(laserLength - 5, 0);
+    ctx.stroke();
+
+    // Trail particles
+    for (let j = 0; j < 3; j++) {
+      const trailX = -10 - j * 8;
+      const trailAlpha = (1 - j * 0.3) * laser.life;
+      ctx.fillStyle = `${color}${Math.floor(trailAlpha * 255).toString(16).padStart(2, '0')}`;
+      ctx.beginPath();
+      ctx.arc(trailX, Math.sin(animTime * 10 + j) * 2, 3 - j, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
 export interface RenderState {
   player: Player;
   unicorns: Unicorn[];
@@ -611,6 +839,8 @@ export interface RenderState {
   lightningBolts: LightningBolt[];
   hurricaneAngle: number;
   screenShake: Vector2;
+  powerUpLasers?: { x: number; y: number; angle: number; life: number }[];
+  isPowerUpActive?: boolean;
 }
 
 export function renderGame(ctx: CanvasRenderingContext2D, state: RenderState): void {
@@ -639,6 +869,11 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: RenderState): v
   }
 
   drawPlayer(ctx, state.player);
+
+  // Draw power-up lasers
+  if (state.powerUpLasers && state.powerUpLasers.length > 0) {
+    drawPowerUpLasers(ctx, state.powerUpLasers);
+  }
 
   // Draw boss
   if (state.boss) {

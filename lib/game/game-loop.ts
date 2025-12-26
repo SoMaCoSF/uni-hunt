@@ -271,7 +271,10 @@ export function updateGame(deltaTime: number, inputState: InputState): void {
     (l) => !collisions.leprechaunsReachedPot.includes(l.id)
   );
 
-  // Handle spawning
+  // Update power-up lasers
+  useGameStore.getState().updatePowerUpLasers(deltaTime);
+
+  // Handle spawning with level config
   let newUnicornTimer = state.unicornSpawnTimer + deltaTime;
   let newLeprechaunTimer = state.leprechaunSpawnTimer + deltaTime;
 
@@ -279,10 +282,11 @@ export function updateGame(deltaTime: number, inputState: InputState): void {
     newUnicornTimer >= levelConfig.unicornSpawnRate &&
     finalUnicorns.length < levelConfig.maxUnicorns
   ) {
-    const unicorn = createUnicorn(
-      levelConfig.unicornGoldValue,
-      levelConfig.unicornSpeed
-    );
+    const unicorn = createUnicorn({
+      goldValue: levelConfig.unicornGoldValue,
+      speed: levelConfig.unicornSpeed,
+      sizeMultiplier: levelConfig.unicornSizeMultiplier,
+    });
     finalUnicorns.push(unicorn);
     newUnicornTimer = 0;
   }
@@ -291,7 +295,11 @@ export function updateGame(deltaTime: number, inputState: InputState): void {
     newLeprechaunTimer >= levelConfig.leprechaunSpawnRate &&
     finalLeprechauns.length < levelConfig.maxLeprechauns
   ) {
-    const leprechaun = createLeprechaun(levelConfig.leprechaunSpeed);
+    const leprechaun = createLeprechaun({
+      speed: levelConfig.leprechaunSpeed,
+      tapsRequired: levelConfig.leprechaunTapsRequired,
+      canTeleport: levelConfig.leprechaunCanTeleport,
+    });
     finalLeprechauns.push(leprechaun);
     newLeprechaunTimer = 0;
   }
