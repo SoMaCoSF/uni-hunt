@@ -234,9 +234,9 @@ export function updateGame(deltaTime: number, inputState: InputState): void {
     position: { ...inputState.mousePosition },
   };
 
-  // Update unicorns
+  // Update unicorns with flee behavior from leprechauns
   const updatedUnicorns = state.unicorns.map((u) =>
-    updateUnicornWander(u, deltaTime)
+    updateUnicornWander(u, deltaTime, state.leprechauns)
   );
 
   // Update leprechauns

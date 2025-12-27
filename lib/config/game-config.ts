@@ -12,31 +12,19 @@
 // execution: import { GAME_CONFIG } from '@/lib/config/game-config'
 // ==============================================================================
 
-// Helper to get responsive canvas dimensions
-export function getResponsiveCanvasSize() {
+// Helper to detect mobile and get scale factor
+export function getMobileScale() {
   const width = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const height = typeof window !== 'undefined' ? window.innerHeight : 600;
-
-  // Base dimensions (desktop)
-  const baseWidth = 800;
-  const baseHeight = 600;
-
-  // Mobile scaling - use smaller base if on mobile
   const isMobile = width < 768;
-
-  return {
-    width: isMobile ? Math.min(width, 800) : baseWidth,
-    height: isMobile ? Math.min(height, 600) : baseHeight,
-    scale: isMobile ? Math.min(width / baseWidth, height / baseHeight) : 1,
-  };
+  return isMobile ? 0.5 : 1.0; // 50% scale on mobile
 }
 
 export const GAME_CONFIG = {
-  // Canvas dimensions (base - will be scaled responsively)
+  // Canvas dimensions
   CANVAS_WIDTH: 800,
   CANVAS_HEIGHT: 600,
 
-  // Player settings
+  // Player settings (will be scaled by getMobileScale())
   PLAYER_SIZE: 12,
   PLAYER_NET_RADIUS: 50,
 
@@ -46,12 +34,16 @@ export const GAME_CONFIG = {
   STUN_DURATION: 0.3, // Seconds leprechaun is stunned after tap
   TAP_DECAY_TIME: 2.5, // Seconds before tap count resets
 
-  // Entity base sizes (scale with level)
+  // Entity base sizes (scale with level and mobile)
   BASE_UNICORN_SIZE: 18,
   MIN_UNICORN_SIZE: 9, // Smallest unicorn size at max level
   LEPRECHAUN_SIZE: 14,
   POT_SIZE: 40,
   BOSS_SIZE: 60,
+
+  // Unicorn flee behavior
+  UNICORN_FLEE_DISTANCE: 150, // Distance at which unicorns flee from leprechauns
+  UNICORN_FLEE_SPEED_MULTIPLIER: 1.5, // Speed boost when fleeing
 
   // Spawning
   SPAWN_MARGIN: 50,

@@ -135,9 +135,46 @@ export function createLeprechaun(options: LeprechaunSpawnOptions): Leprechaun {
   };
 }
 
-export function updateUnicornWander(unicorn: Unicorn, deltaTime: number): Unicorn {
+export function updateUnicornWander(unicorn: Unicorn, deltaTime: number, leprechauns?: Array<{position: Vector2}>): Unicorn {
   const newTimer = unicorn.wanderTimer + deltaTime;
 
+  // Check for nearby leprechauns and flee if needed
+  let isFleeing = false;
+  let fleeVx = 0;
+  let fleeVy = 0;
+
+  if (leprechauns) {
+    for (const lep of leprechauns) {
+      const dx = unicorn.position.x - lep.position.x;
+      const dy = unicorn.position.y - lep.position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < GAME_CONFIG.UNICORN_FLEE_DISTANCE) {
+        // Flee away from leprechaun
+        isFleeing = true;
+        const angle = Math.atan2(dy, dx);
+        fleeVx += Math.cos(angle) * unicorn.speed * GAME_CONFIG.UNICORN_FLEE_SPEED_MULTIPLIER;
+        fleeVy += Math.sin(angle) * unicorn.speed * GAME_CONFIG.UNICORN_FLEE_SPEED_MULTIPLIER;
+      }
+    }
+  }
+
+  // If fleeing, use flee velocity
+  if (isFleeing) {
+    return {
+      ...unicorn,
+      position: {
+        x: unicorn.position.x + fleeVx * deltaTime,
+        y: unicorn.position.y + fleeVy * deltaTime,
+      },
+      velocity: { x: fleeVx, y: fleeVy },
+      wanderTarget: unicorn.wanderTarget, // Keep current target
+      wanderTimer: newTimer,
+      rotation: Math.atan2(fleeVy, fleeVx),
+    };
+  }
+
+  // Normal wander behavior
   // Check if we need a new wander target
   let newTarget = unicorn.wanderTarget;
   let resetTimer = newTimer;

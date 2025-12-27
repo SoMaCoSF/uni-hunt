@@ -14,10 +14,11 @@
 
 import { Player, Unicorn, Leprechaun, PotOfGold, Boss } from '@/types/entities';
 import { RAINBOW_HEX, Vector2 } from '@/types/game';
-import { GAME_CONFIG } from '@/lib/config/game-config';
+import { GAME_CONFIG, getMobileScale } from '@/lib/config/game-config';
 import { RainDrop, LightningBolt } from '@/stores/gameStore';
 
 let animTime = 0;
+let mobileScale = 1.0; // Global scale for mobile devices
 
 // Multi-layer star system for depth
 interface Star {
@@ -86,6 +87,7 @@ for (let i = 0; i < 4; i++) {
 
 export function clearCanvas(ctx: CanvasRenderingContext2D): void {
   animTime += 0.016; // ~60fps delta
+  mobileScale = getMobileScale(); // Update mobile scale
 
   // Animated color-cycling background gradient
   const cycleHue = (animTime * 5) % 360;
@@ -153,19 +155,54 @@ export function clearCanvas(ctx: CanvasRenderingContext2D): void {
   ctx.lineWidth = 3;
   ctx.strokeRect(8, 8, GAME_CONFIG.CANVAS_WIDTH - 16, GAME_CONFIG.CANVAS_HEIGHT - 16);
   ctx.shadowBlur = 0;
+
+  // Ambient magical particles floating around
+  for (let i = 0; i < 20; i++) {
+    const floatX = (i * 137.5) % GAME_CONFIG.CANVAS_WIDTH; // Golden ratio spacing
+    const floatY = ((i * 73.2 + animTime * 20 + i * 15) % GAME_CONFIG.CANVAS_HEIGHT);
+    const floatSize = 0.5 + (i % 3) * 0.5;
+    const floatAlpha = 0.15 + Math.sin(animTime * 3 + i) * 0.1;
+    const floatHue = (i * 37 + animTime * 15) % 360;
+
+    ctx.fillStyle = `hsla(${floatHue}, 70%, 70%, ${floatAlpha})`;
+    ctx.beginPath();
+    ctx.arc(floatX, floatY, floatSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 export function drawPotOfGold(ctx: CanvasRenderingContext2D, pot: PotOfGold): void {
   ctx.save();
   ctx.translate(pot.position.x, pot.position.y);
+  ctx.scale(mobileScale, mobileScale); // Apply mobile scaling
 
+  // Enhanced glow with pulsing
+  const pulseIntensity = 0.3 + Math.sin(animTime * 2) * 0.1;
   const potGlow = ctx.createRadialGradient(0, 10, 0, 0, 10, pot.size * 1.5);
-  potGlow.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+  potGlow.addColorStop(0, `rgba(255, 215, 0, ${pulseIntensity})`);
   potGlow.addColorStop(1, 'rgba(255, 215, 0, 0)');
   ctx.fillStyle = potGlow;
   ctx.beginPath();
   ctx.ellipse(0, 10, pot.size * 1.5, pot.size * 0.8, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Floating gold sparkle particles around pot
+  for (let i = 0; i < 12; i++) {
+    const sparkleAngle = (i / 12) * Math.PI * 2 + animTime;
+    const sparkleRadius = pot.size * 1.2 + Math.sin(animTime * 3 + i) * 15;
+    const sx = Math.cos(sparkleAngle) * sparkleRadius;
+    const sy = Math.sin(sparkleAngle) * sparkleRadius * 0.6 - pot.size * 0.3;
+    const sparkleSize = 1 + Math.sin(animTime * 4 + i * 0.5) * 0.8;
+    const sparkleAlpha = 0.3 + Math.sin(animTime * 5 + i * 0.8) * 0.3;
+
+    ctx.fillStyle = `rgba(255, 215, 0, ${sparkleAlpha})`;
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sparkleSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
 
   const potGradient = ctx.createLinearGradient(-pot.size, 0, pot.size, 0);
   potGradient.addColorStop(0, '#0a0a0a');
@@ -225,9 +262,10 @@ export function drawPotOfGold(ctx: CanvasRenderingContext2D, pot: PotOfGold): vo
 export function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void {
   ctx.save();
   ctx.translate(player.position.x, player.position.y);
+  ctx.scale(mobileScale, mobileScale); // Apply mobile scaling
 
   ctx.shadowColor = '#ff66ff';
-  ctx.shadowBlur = 20;
+  ctx.shadowBlur = 20 * mobileScale;
 
   const netRotation = animTime * 0.5;
   ctx.rotate(netRotation);
@@ -295,6 +333,7 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: Player): void 
 export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): void {
   ctx.save();
   ctx.translate(unicorn.position.x, unicorn.position.y);
+  ctx.scale(mobileScale, mobileScale); // Apply mobile scaling
   ctx.rotate(unicorn.rotation);
 
   // Enhanced outer shimmer glow - color shifting
@@ -353,6 +392,22 @@ export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): vo
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+  }
+
+  // Motion trail particles when moving fast
+  const speed = Math.sqrt(unicorn.velocity.x ** 2 + unicorn.velocity.y ** 2);
+  if (speed > 50) {
+    for (let i = 0; i < 6; i++) {
+      const trailDist = -unicorn.size - i * 8;
+      const trailAlpha = (1 - i / 6) * Math.min(speed / 100, 1);
+      const trailSize = (unicorn.size * 0.6) * (1 - i / 8);
+      const trailHue = (shimmerHue + i * 30) % 360;
+
+      ctx.fillStyle = `hsla(${trailHue}, 80%, 80%, ${trailAlpha * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(trailDist, 0, trailSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   // Shimmery body with color shifting highlight
@@ -439,8 +494,31 @@ export function drawUnicorn(ctx: CanvasRenderingContext2D, unicorn: Unicorn): vo
 export function drawLeprechaun(ctx: CanvasRenderingContext2D, leprechaun: Leprechaun): void {
   ctx.save();
   ctx.translate(leprechaun.position.x, leprechaun.position.y);
+  ctx.scale(mobileScale, mobileScale); // Apply mobile scaling
 
   const tapPercent = leprechaun.tapCount / leprechaun.tapsRequired;
+
+  // Impact burst particles when recently tapped
+  if (leprechaun.tapCount > 0) {
+    const timeSinceTap = performance.now() / 1000 - leprechaun.lastTapTime;
+    if (timeSinceTap < 0.3) {
+      // Show burst particles
+      const burstIntensity = 1 - timeSinceTap / 0.3;
+      for (let i = 0; i < 8; i++) {
+        const burstAngle = (i / 8) * Math.PI * 2;
+        const burstDist = leprechaun.size * 1.5 * (1 + timeSinceTap * 3);
+        const bx = Math.cos(burstAngle) * burstDist;
+        const by = Math.sin(burstAngle) * burstDist;
+        const burstAlpha = burstIntensity * 0.8;
+
+        const burstColors = [RAINBOW_HEX.red, RAINBOW_HEX.yellow, RAINBOW_HEX.orange];
+        ctx.fillStyle = `${burstColors[i % 3]}${Math.floor(burstAlpha * 255).toString(16).padStart(2, '0')}`;
+        ctx.beginPath();
+        ctx.arc(bx, by, 3 * burstIntensity, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
 
   // Stun effect - shake when stunned
   if (leprechaun.isStunned) {
@@ -691,6 +769,7 @@ export function drawHurricane(ctx: CanvasRenderingContext2D, angle: number, cent
 export function drawBoss(ctx: CanvasRenderingContext2D, boss: Boss): void {
   ctx.save();
   ctx.translate(boss.position.x, boss.position.y);
+  ctx.scale(mobileScale, mobileScale); // Apply mobile scaling
 
   // Boss cloud body
   const cloudGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, boss.size);
@@ -813,14 +892,29 @@ export function drawPowerUpLasers(
     ctx.lineTo(laserLength - 5, 0);
     ctx.stroke();
 
-    // Trail particles
-    for (let j = 0; j < 3; j++) {
-      const trailX = -10 - j * 8;
-      const trailAlpha = (1 - j * 0.3) * laser.life;
+    // Enhanced trail particles with more sparkles
+    for (let j = 0; j < 8; j++) {
+      const trailX = -15 - j * 6;
+      const trailY = Math.sin(animTime * 10 + j) * 3;
+      const trailAlpha = (1 - j * 0.12) * laser.life;
+      const trailSize = 4 - j * 0.4;
+
       ctx.fillStyle = `${color}${Math.floor(trailAlpha * 255).toString(16).padStart(2, '0')}`;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10 * trailAlpha;
       ctx.beginPath();
-      ctx.arc(trailX, Math.sin(animTime * 10 + j) * 2, 3 - j, 0, Math.PI * 2);
+      ctx.arc(trailX, trailY, trailSize, 0, Math.PI * 2);
       ctx.fill();
+
+      // Additional sparkle particles
+      if (j % 2 === 0) {
+        const sparkX = trailX + (Math.random() - 0.5) * 8;
+        const sparkY = trailY + (Math.random() - 0.5) * 8;
+        ctx.fillStyle = `rgba(255, 255, 255, ${trailAlpha * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     ctx.shadowBlur = 0;

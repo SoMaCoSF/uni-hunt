@@ -32,7 +32,7 @@ export function GameCanvas() {
       style={{
         width: '100%',
         height: '100%',
-        objectFit: 'contain',
+        objectFit: 'cover',
         imageRendering: 'auto',
       }}
     />
