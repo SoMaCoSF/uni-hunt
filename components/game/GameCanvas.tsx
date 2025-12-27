@@ -14,37 +14,26 @@
 
 "use client";
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef } from 'react';
 import { useGameLoop } from '@/hooks/useGameLoop';
-import { getResponsiveCanvasSize } from '@/lib/config/game-config';
+import { GAME_CONFIG } from '@/lib/config/game-config';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
-
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      const size = getResponsiveCanvasSize();
-      setCanvasSize({ width: size.width, height: size.height });
-    };
-
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
-  }, []);
 
   useGameLoop({ canvasRef });
 
   return (
     <canvas
       ref={canvasRef}
-      width={canvasSize.width}
-      height={canvasSize.height}
+      width={GAME_CONFIG.CANVAS_WIDTH}
+      height={GAME_CONFIG.CANVAS_HEIGHT}
       className="cursor-crosshair"
       style={{
         width: '100%',
         height: '100%',
         objectFit: 'contain',
+        imageRendering: 'auto',
       }}
     />
   );
