@@ -12,8 +12,27 @@
 // execution: import { GAME_CONFIG } from '@/lib/config/game-config'
 // ==============================================================================
 
+// Helper to get responsive canvas dimensions
+export function getResponsiveCanvasSize() {
+  const width = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const height = typeof window !== 'undefined' ? window.innerHeight : 600;
+
+  // Base dimensions (desktop)
+  const baseWidth = 800;
+  const baseHeight = 600;
+
+  // Mobile scaling - use smaller base if on mobile
+  const isMobile = width < 768;
+
+  return {
+    width: isMobile ? Math.min(width, 800) : baseWidth,
+    height: isMobile ? Math.min(height, 600) : baseHeight,
+    scale: isMobile ? Math.min(width / baseWidth, height / baseHeight) : 1,
+  };
+}
+
 export const GAME_CONFIG = {
-  // Canvas dimensions
+  // Canvas dimensions (base - will be scaled responsively)
   CANVAS_WIDTH: 800,
   CANVAS_HEIGHT: 600,
 

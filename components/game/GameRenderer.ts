@@ -29,39 +29,54 @@ interface Star {
   hue: number;
 }
 
-const stars: Star[] = [];
-// Far layer - small, slow
-for (let i = 0; i < 30; i++) {
-  stars.push({
-    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
-    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
-    size: Math.random() * 1 + 0.3,
-    twinkle: Math.random() * Math.PI * 2,
-    layer: 0,
-    hue: Math.random() * 60 + 200, // Blue-purple range
-  });
-}
-// Mid layer
-for (let i = 0; i < 25; i++) {
-  stars.push({
-    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
-    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
-    size: Math.random() * 1.5 + 0.5,
-    twinkle: Math.random() * Math.PI * 2,
-    layer: 1,
-    hue: Math.random() * 360, // Any color
-  });
-}
-// Near layer - larger, faster twinkle
-for (let i = 0; i < 15; i++) {
-  stars.push({
-    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
-    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
-    size: Math.random() * 2.5 + 1,
-    twinkle: Math.random() * Math.PI * 2,
-    layer: 2,
-    hue: Math.random() * 60 + 30, // Warm colors (gold, orange)
-  });
+// Initialize stars dynamically based on canvas size
+let stars: Star[] = [];
+let nebulaClouds: NebulaCloud[] = [];
+let lastCanvasWidth = 0;
+let lastCanvasHeight = 0;
+
+function initializeStars(width: number, height: number) {
+  if (width === lastCanvasWidth && height === lastCanvasHeight && stars.length > 0) {
+    return; // Already initialized for this size
+  }
+
+  lastCanvasWidth = width;
+  lastCanvasHeight = height;
+  stars = [];
+
+  // Far layer - small, slow
+  for (let i = 0; i < 30; i++) {
+    stars.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1 + 0.3,
+      twinkle: Math.random() * Math.PI * 2,
+      layer: 0,
+      hue: Math.random() * 60 + 200, // Blue-purple range
+    });
+  }
+  // Mid layer
+  for (let i = 0; i < 25; i++) {
+    stars.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1.5 + 0.5,
+      twinkle: Math.random() * Math.PI * 2,
+      layer: 1,
+      hue: Math.random() * 360, // Any color
+    });
+  }
+  // Near layer - larger, faster twinkle
+  for (let i = 0; i < 15; i++) {
+    stars.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 2.5 + 1,
+      twinkle: Math.random() * Math.PI * 2,
+      layer: 2,
+      hue: Math.random() * 60 + 30, // Warm colors (gold, orange)
+    });
+  }
 }
 
 // Nebula cloud positions
@@ -73,19 +88,29 @@ interface NebulaCloud {
   drift: number;
 }
 
-const nebulaClouds: NebulaCloud[] = [];
-for (let i = 0; i < 4; i++) {
-  nebulaClouds.push({
-    x: Math.random() * GAME_CONFIG.CANVAS_WIDTH,
-    y: Math.random() * GAME_CONFIG.CANVAS_HEIGHT,
-    radius: 100 + Math.random() * 150,
-    hue: Math.random() * 360,
-    drift: Math.random() * Math.PI * 2,
-  });
+function initializeNebulaClouds(width: number, height: number) {
+  if (nebulaClouds.length > 0) return;
+
+  for (let i = 0; i < 4; i++) {
+    nebulaClouds.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      radius: 100 + Math.random() * 150,
+      hue: Math.random() * 360,
+      drift: Math.random() * Math.PI * 2,
+    });
+  }
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D): void {
   animTime += 0.016; // ~60fps delta
+
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+
+  // Initialize stars and nebula for current canvas size
+  initializeStars(width, height);
+  initializeNebulaClouds(width, height);
 
   // Animated color-cycling background gradient
   const cycleHue = (animTime * 5) % 360;
@@ -94,14 +119,14 @@ export function clearCanvas(ctx: CanvasRenderingContext2D): void {
   const bgColor3 = `hsl(${(cycleHue + 280) % 360}, 25%, 5%)`;
 
   const bgGradient = ctx.createRadialGradient(
-    GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2, 0,
-    GAME_CONFIG.CANVAS_WIDTH / 2, GAME_CONFIG.CANVAS_HEIGHT / 2, GAME_CONFIG.CANVAS_WIDTH * 0.8
+    width / 2, height / 2, 0,
+    width / 2, height / 2, width * 0.8
   );
   bgGradient.addColorStop(0, bgColor2);
   bgGradient.addColorStop(0.5, bgColor1);
   bgGradient.addColorStop(1, bgColor3);
   ctx.fillStyle = bgGradient;
-  ctx.fillRect(0, 0, GAME_CONFIG.CANVAS_WIDTH, GAME_CONFIG.CANVAS_HEIGHT);
+  ctx.fillRect(0, 0, width, height);
 
   // Draw subtle nebula clouds for depth (very muted)
   for (const cloud of nebulaClouds) {
